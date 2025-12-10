@@ -1,25 +1,8 @@
+// src/middlewares/error.middleware.ts
 import type { Request, Response, NextFunction } from "express";
 
-import logger from "../config/logger.js";
-
-export interface AppError extends Error {
-  statusCode?: number;
+export function errorHandler(err: any, req: Request, res: Response, next: NextFunction) {
+  console.error(err);
+  const status = err.status || 500;
+  res.status(status).json({ message: err.message || "Internal Server Error" });
 }
-
-export const errorHandler = (
-  err: AppError,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  logger.error({
-    message: err.message,
-    stack: err.stack,
-    route: req.originalUrl,
-  });
-
-  res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || "Internal Server Error",
-  });
-};

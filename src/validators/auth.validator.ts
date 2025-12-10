@@ -1,33 +1,17 @@
-import { body } from "express-validator";
+// src/validators/auth.validator.ts
+import { z } from "zod";
 
-export const authValidators = {
-  signup: [
-    body("name").notEmpty().withMessage("Name is required"),
+export const registerSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8),
+});
 
-    body("email")
-      .notEmpty().withMessage("Email is required")
-      .isEmail().withMessage("Invalid email format"),
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
 
-    body("password")
-      .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters"),
-  ],
-
-  login: [
-    body("email").isEmail().withMessage("Valid email is required"),
-    body("password").notEmpty().withMessage("Password is required")
-  ],
-
-  forgotPassword: [
-    body("email")
-      .notEmpty().withMessage("Email required")
-      .isEmail().withMessage("Enter a valid email")
-  ],
-
-  resetPassword: [
-    body("token").notEmpty().withMessage("Reset token required"),
-    body("newPassword")
-      .isLength({ min: 6 })
-      .withMessage("Password must be at least 6 characters")
-  ]
-};
+export const refreshSchema = z.object({
+  // refresh will be read from cookie
+});

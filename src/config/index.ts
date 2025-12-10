@@ -1,12 +1,23 @@
-import express from "express";
+// src/config/index.ts
+import dotenv from "dotenv";
+dotenv.config();
 
-const app = express();
-const port = 5000;
-
-app.get("/", (req, res) => {
-  res.send("Backend is running with TypeScript!");
-});
-
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+export default {
+  port: process.env.PORT || "4000",
+  mongoUri: process.env.MONGO_URI || "",
+  jwt: {
+    accessTokenSecret: process.env.ACCESS_TOKEN_SECRET || "",
+    accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES || "15m", // 15m
+    refreshTokenExpiresDays: parseInt(process.env.REFRESH_TOKEN_EXPIRES_DAYS || "30", 10),
+  },
+  cookie: {
+    refreshTokenName: process.env.REFRESH_COOKIE_NAME || "rt",
+    secure: process.env.COOKIE_SECURE === "true",
+    sameSite: (process.env.COOKIE_SAMESITE as "Strict"|"Lax"|"None") || "Strict",
+    httpOnly: true,
+  },
+  rateLimit: {
+    authWindowMs: 10 * 60 * 1000, // 10 minutes
+    authMax: 5, // 5 attempts per IP
+  }
+};
