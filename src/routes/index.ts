@@ -9,8 +9,13 @@ const router = Router();
 
 // Auth routes
 router.post("/auth/register", authRateLimiter, authController.register);
-router.post("/auth/login", authRateLimiter, authController.login);
-router.post("/auth/refresh", authRateLimiter, authController.refresh); // cookie-based
+// router.post("/auth/login", authRateLimiter, authController.login);
+// router.post("/auth/google", authRateLimiter, authController.googleLogin);
+// router.post("/auth/refresh", authRateLimiter, authController.refresh); 
+// Temporary disable rate limit for dev
+router.post("/auth/login", authController.login);
+router.post("/auth/google", authController.googleLogin);
+router.post("/auth/refresh", authController.refresh); // cookie-based
 router.post("/auth/logout", authController.logout);
 router.get("/auth/verify-email", authController.verifyEmail);
 
