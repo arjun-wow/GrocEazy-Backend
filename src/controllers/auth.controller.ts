@@ -1,7 +1,7 @@
 // src/controllers/auth.controller.ts
 import type { Request, Response } from "express";
 import * as authService from "../services/auth.service.js";
-import { registerSchema, loginSchema } from "../validators/auth.validator.js";
+import { registerSchema, loginSchema, googleLoginSchema } from "../validators/auth.validator.js";
 import { logger } from "../utils/logger.js";
 import { z } from "zod";
 import config from "../config/index.js";
@@ -34,6 +34,30 @@ export async function login(req: Request, res: Response) {
 
   // guard for unexpected null user (minimal check)
   if (!user) return res.status(500).json({ message: "Login succeeded but user object missing" });
+
+  // normalize sameSite to express-expected union type ("strict" | "lax" | "none")
+  const sameSite =
+    (String(config.cookie.sameSite || "strict").toLowerCase() as "strict" | "lax" | "none");
+
+  // set refresh token cookie
+  res.cookie(config.cookie.refreshTokenName, refreshToken, {
+    httpOnly: config.cookie.httpOnly,
+    secure: config.cookie.secure,
+    sameSite,
+    maxAge: config.jwt.refreshTokenExpiresDays * 24 * 60 * 60 * 1000,
+  });
+
+  return res.json({ accessToken, user: { id: user!._id, email: user.email, role: user.role } });
+}
+
+export async function googleLogin(req: Request, res: Response) {
+  const parse = googleLoginSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
+
+  const ip = req.ip ?? "";
+  const ua = req.get("User-Agent") || "";
+
+  const { accessToken, refreshToken, user } = await authService.loginOrRegisterGoogleUser(parse.data.token, ip, ua);
 
   // normalize sameSite to express-expected union type ("strict" | "lax" | "none")
   const sameSite =

@@ -14,6 +14,7 @@ const authLimiter = rateLimit({
 
 router.post("/register", authLimiter, authCtrl.register);
 router.post("/login", authLimiter, authCtrl.login);
+router.post("/google", authLimiter, authCtrl.googleLogin);
 router.post("/refresh", authCtrl.refresh); // cookie-protected
 router.post("/logout", authCtrl.logout);
 
