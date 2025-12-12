@@ -1,40 +1,62 @@
-import { body } from "express-validator";
+import { body, param } from "express-validator";
 
 export const productValidators = {
   create: [
-    body("name").notEmpty().withMessage("Product name required"),
-    body("description").notEmpty().withMessage("Description required"),
-    body("size").optional().isString(),
-    body("dietary").optional().isString(),
+    body("name")
+      .trim()
+      .notEmpty().withMessage("Product name is required"),
+
+    body("description")
+      .trim()
+      .notEmpty().withMessage("Description is required"),
+
+    body("size")
+      .optional()
+      .isString()
+      .trim(),
+
+    body("dietary")
+      .optional()
+      .isString()
+      .trim(),
 
     body("stock")
-      .isInt({ min: 0 })
-      .withMessage("Stock must be non-negative"),
+      .notEmpty().withMessage("Stock is required")
+      .isInt({ min: 0 }).withMessage("Stock must be a non-negative integer"),
 
     body("lowStockThreshold")
-      .isInt({ min: 0 }),
+      .optional()
+      .isInt({ min: 0 }).withMessage("Low stock threshold must be a non-negative integer"),
 
     body("price")
-      .isFloat({ gt: 0 })
-      .withMessage("Price must be greater than 0"),
+      .notEmpty().withMessage("Price is required")
+      .isFloat({ gt: 0 }).withMessage("Price must be greater than 0"),
 
     body("categoryId")
-      .isMongoId().withMessage("Invalid categoryId"),
+      .notEmpty().withMessage("Category ID is required")
+      .isMongoId().withMessage("Invalid Category ID format"),
 
-    body("images")
-      .isArray({ min: 1 })
-      .withMessage("At least one image required"),
+    // Images are handled via multer but we can check if body has it if not file upload? 
+    // Usually images are uploaded as files. validator usually validates body. 
+    // If strict on image presence, we might need custom validator or rely on controller check of req.files.
+    // For now, standard fields.
   ],
 
   update: [
-    body("name").optional().notEmpty(),
-    body("price").optional().isFloat({ gt: 0 }),
+    param("id").isMongoId().withMessage("Invalid Product ID"),
+
+    body("name").optional().trim().notEmpty(),
+    body("description").optional().trim().notEmpty(),
+    body("size").optional().isString().trim(),
+    body("dietary").optional().isString().trim(),
     body("stock").optional().isInt({ min: 0 }),
+    body("lowStockThreshold").optional().isInt({ min: 0 }),
+    body("price").optional().isFloat({ gt: 0 }),
     body("categoryId").optional().isMongoId(),
-    body("images").optional().isArray(),
+    body("isActive").optional().isBoolean(),
   ],
 
   delete: [
-    body("productId").isMongoId().withMessage("Invalid productId")
+    param("id").isMongoId().withMessage("Invalid Product ID")
   ]
 };

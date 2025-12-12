@@ -12,10 +12,12 @@ const authLimiter = rateLimit({
   message: "Too many requests, please try again later."
 });
 
+// Auth endpoints
 router.post("/register", authLimiter, authCtrl.register);
 router.post("/login", authLimiter, authCtrl.login);
 router.post("/google", authLimiter, authCtrl.googleLogin);
-router.post("/refresh", authCtrl.refresh); // cookie-protected
+router.post("/refresh", authCtrl.refresh); // no limit (refresh uses cookies)
 router.post("/logout", authCtrl.logout);
+router.get("/verify-email", authCtrl.verifyEmail);
 
 export default router;
