@@ -6,7 +6,7 @@ import config from "../config/index.js";
 
 export async function connectMongo() {
   try {
-    const mongoUrl = config.mongoUri || process.env.MONGO_DB_URL;
+    const mongoUrl = process.env.MONGO_DB_URL;
     if (!mongoUrl) {
       throw new Error("MONGO_DB_URL (or config.mongoUri) environment variable is not defined");
     }

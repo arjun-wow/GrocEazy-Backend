@@ -1,16 +1,19 @@
-import { body } from "express-validator";
+import { body, param } from "express-validator";
 
 export const categoryValidators = {
   create: [
-    body("name").notEmpty().withMessage("Category name is required"),
-
-    body("parentCategoryId")
-      .optional()
-      .isMongoId().withMessage("Invalid parentCategoryId")
+    body("name")
+      .trim()
+      .notEmpty().withMessage("Category name is required")
   ],
 
   update: [
-    body("name").optional().notEmpty(),
-    body("parentCategoryId").optional().isMongoId()
+    param("id").isMongoId().withMessage("Invalid Category ID"),
+
+    body("name").optional().trim().notEmpty()
+  ],
+
+  delete: [
+    param("id").isMongoId().withMessage("Invalid Category ID")
   ]
 };

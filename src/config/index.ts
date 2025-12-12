@@ -4,7 +4,7 @@ dotenv.config();
 
 export default {
   port: process.env.PORT || "4000",
-  mongoUri: process.env.MONGO_URI || "",
+  mongoUrl: process.env.MONGO_DB_URL || "",
   jwt: {
     accessTokenSecret: process.env.ACCESS_TOKEN_SECRET || "",
     accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES || "15m", // 15m
@@ -13,7 +13,7 @@ export default {
   cookie: {
     refreshTokenName: process.env.REFRESH_COOKIE_NAME || "rt",
     secure: process.env.COOKIE_SECURE === "true",
-    sameSite: (process.env.COOKIE_SAMESITE as "Strict"|"Lax"|"None") || "Strict",
+    sameSite: (process.env.COOKIE_SAMESITE as "Strict" | "Lax" | "None") || "Strict",
     httpOnly: true,
   },
   rateLimit: {
