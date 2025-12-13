@@ -6,6 +6,8 @@ import {
     getProductById,
     updateProduct,
     deleteProduct,
+    getSimilarProducts,
+    getTopProducts,
 } from "../controllers/product.controller.js";
 import { productValidators } from "../validators/product.validators.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -18,7 +20,9 @@ const router = Router();
 
 // Public routes
 router.get("/", getAllProducts);
-router.get("/:id", getProductById);
+router.get("/recommendations/top-10", getTopProducts); // specific route BEFORE /:id
+router.get("/:id/similar", getSimilarProducts);        // specific route
+router.get("/:id", getProductById);                    // generic catch-all for ID
 
 // Protected routes (Manager only)
 router.post(

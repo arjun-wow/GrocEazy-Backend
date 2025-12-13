@@ -83,3 +83,28 @@ export const deleteProduct = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Error deleting product", error });
     }
 };
+
+export const getSimilarProducts = async (req: Request, res: Response) => {
+    try {
+        const id = req.params.id as string;
+        const limit = parseInt(req.query.limit as string) || 6;
+
+        const products = await ProductService.getSimilarProducts(id, limit);
+        return res.status(200).json(products);
+    } catch (error) {
+        logger.error("Error fetching similar products", error);
+        return res.status(500).json({ message: "Error fetching similar products", error });
+    }
+};
+
+export const getTopProducts = async (req: Request, res: Response) => {
+    try {
+        const limit = parseInt(req.query.limit as string) || 10;
+
+        const products = await ProductService.getTopProducts(limit);
+        return res.status(200).json(products);
+    } catch (error) {
+        logger.error("Error fetching top products", error);
+        return res.status(500).json({ message: "Error fetching top products", error });
+    }
+};

@@ -17,6 +17,12 @@ class WishlistService {
         },
       },
       { $unwind: "$product" },
+      // Filter out deleted products
+      {
+        $match: {
+          "product.isDeleted": false
+        }
+      },
       {
         $project: {
           _id: 1,
