@@ -1,14 +1,18 @@
-import { body } from "express-validator";
+import { z } from 'zod';
 
-export const ticketValidators = {
-  create: [
-    body("subject").notEmpty().withMessage("Subject is required"),
-    body("description").notEmpty().withMessage("Description required")
-  ],
+export const ticketIdParamSchema = z.object({
+  ticketId: z.string().min(1, 'ticketId is required'),
+});
 
-  updateStatus: [
-    body("status")
-      .isIn(["open","in_progress","resolved","closed"])
-      .withMessage("Invalid ticket status")
-  ]
-};
+export const createTicketSchema = z.object({
+  subject: z.string().min(1, 'Subject is required'),
+  description: z.string().min(1, 'Description is required'),
+});
+
+export const updateTicketStatusSchema = z.object({
+  status: z.enum(['open', 'in_progress', 'resolved', 'closed']),
+});
+
+export const assignManagerSchema = z.object({
+  managerId: z.string().min(1, 'managerId is required'),
+});
