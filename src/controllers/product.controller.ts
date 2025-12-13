@@ -1,25 +1,29 @@
-import type { Request, Response } from "express";
+import type { Request, Response, RequestHandler } from "express";
 
 import ProductService from "../services/product.service.js";
 import { logger } from "../utils/logger.js";
 
-export const createProduct = async (req: Request, res: Response) => {
+import { createProductSchema, updateProductSchema, productIdSchema } from "../validators/product.validators.js";
+
+export const createProduct: RequestHandler = async (req, res, next) => {
     try {
-        const files = req.files as Express.Multer.File[] | undefined;
+        const files = (req as any).files as Express.Multer.File[] | undefined;
+        // Use parsed data safely
         const productData = {
             ...req.body,
-            createdBy: req.user?._id
+            createdBy: (req as any).user?._id
         };
 
         const product = await ProductService.createProduct(productData, files);
-        return res.status(201).json(product);
+        res.status(201).json(product);
     } catch (error) {
         logger.error("Error creating product", error);
-        return res.status(500).json({ message: "Error creating product", error });
+        res.status(500).json({ message: "Error creating product", error });
     }
 };
 
-export const getAllProducts = async (req: Request, res: Response) => {
+export const getAllProducts: RequestHandler = async (req, res, next) => {
+    // Query params validation optional for now, or add specific schema if needed
     try {
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 20;
@@ -33,78 +37,93 @@ export const getAllProducts = async (req: Request, res: Response) => {
         };
 
         const result = await ProductService.getAllProducts(filter, page, limit);
-        return res.status(200).json(result);
+        res.status(200).json(result);
     } catch (error) {
         logger.error("Error fetching products", error);
-        return res.status(500).json({ message: "Error fetching products", error });
+        res.status(500).json({ message: "Error fetching products", error });
     }
 };
 
-export const getProductById = async (req: Request, res: Response) => {
+export const getProductById: RequestHandler = async (req, res, next) => {
     try {
-        const id = req.params.id as string;
+        const { id } = req.params;
+        if (!id) {
+            res.status(400).json({ message: "Product ID is required" });
+            return;
+        }
         const product = await ProductService.getProductById(id);
         if (!product) {
-            return res.status(404).json({ message: "Product not found" });
+            res.status(404).json({ message: "Product not found" });
+            return;
         }
-        return res.status(200).json(product);
+        res.status(200).json(product);
     } catch (error) {
         logger.error("Error fetching product", error);
-        return res.status(500).json({ message: "Error fetching product", error });
+        res.status(500).json({ message: "Error fetching product", error });
     }
 };
 
-export const updateProduct = async (req: Request, res: Response) => {
+export const updateProduct: RequestHandler = async (req, res, next) => {
     try {
-        const id = req.params.id as string;
-        const files = req.files as Express.Multer.File[] | undefined;
+        const { id } = req.params;
+        if (!id) {
+            res.status(400).json({ message: "Product ID is required" });
+            return;
+        }
+        const files = (req as any).files as Express.Multer.File[] | undefined;
 
         const product = await ProductService.updateProduct(id, req.body, files);
         if (!product) {
-            return res.status(404).json({ message: "Product not found" });
+            res.status(404).json({ message: "Product not found" });
+            return;
         }
-        return res.status(200).json(product);
+        res.status(200).json(product);
     } catch (error) {
         logger.error("Error updating product", error);
-        return res.status(500).json({ message: "Error updating product", error });
+        res.status(500).json({ message: "Error updating product", error });
     }
 };
 
-export const deleteProduct = async (req: Request, res: Response) => {
+export const deleteProduct: RequestHandler = async (req, res, next) => {
     try {
-        const id = req.params.id as string;
+        const { id } = req.params;
+        if (!id) {
+            res.status(400).json({ message: "Product ID is required" });
+            return;
+        }
         const product = await ProductService.deleteProduct(id);
         if (!product) {
-            return res.status(404).json({ message: "Product not found" });
+            res.status(404).json({ message: "Product not found" });
+            return;
         }
-        return res.status(200).json({ message: "Product deleted successfully" });
+        res.status(200).json({ message: "Product deleted successfully" });
     } catch (error) {
         logger.error("Error deleting product", error);
-        return res.status(500).json({ message: "Error deleting product", error });
+        res.status(500).json({ message: "Error deleting product", error });
     }
 };
 
-export const getSimilarProducts = async (req: Request, res: Response) => {
+export const getSimilarProducts: RequestHandler = async (req, res, next) => {
     try {
         const id = req.params.id as string;
         const limit = parseInt(req.query.limit as string) || 6;
 
         const products = await ProductService.getSimilarProducts(id, limit);
-        return res.status(200).json(products);
+        res.status(200).json(products);
     } catch (error) {
         logger.error("Error fetching similar products", error);
-        return res.status(500).json({ message: "Error fetching similar products", error });
+        res.status(500).json({ message: "Error fetching similar products", error });
     }
 };
 
-export const getTopProducts = async (req: Request, res: Response) => {
+export const getTopProducts: RequestHandler = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit as string) || 10;
 
         const products = await ProductService.getTopProducts(limit);
-        return res.status(200).json(products);
+        res.status(200).json(products);
     } catch (error) {
         logger.error("Error fetching top products", error);
-        return res.status(500).json({ message: "Error fetching top products", error });
+        res.status(500).json({ message: "Error fetching top products", error });
     }
 };
