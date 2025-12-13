@@ -1,72 +1,78 @@
-import type { Request, Response } from "express";
-
+import type { Request, Response, RequestHandler } from "express";
 import CategoryService from "../services/category.service.js";
 import { logger } from "../utils/logger.js";
 
-export const createCategory = async (req: Request, res: Response) => {
+export const createCategory: RequestHandler = async (req, res, next) => {
     try {
-        if (req.file) {
-            req.body.image = req.file.path;
+        const data = { ...req.body };
+        if ((req as any).file) {
+            data.image = (req as any).file.path;
         }
-        const category = await CategoryService.createCategory(req.body);
-        return res.status(201).json(category);
+
+        const category = await CategoryService.createCategory(data);
+        res.status(201).json(category);
     } catch (error) {
         logger.error("Error creating category", error);
-        return res.status(500).json({ message: "Error creating category", error });
+        res.status(500).json({ message: "Error creating category", error });
     }
 };
 
-export const getAllCategories = async (req: Request, res: Response) => {
+export const getAllCategories: RequestHandler = async (req, res, next) => {
     try {
         const categories = await CategoryService.getAllCategories();
-        return res.status(200).json(categories);
+        res.status(200).json(categories);
     } catch (error) {
         logger.error("Error fetching categories", error);
-        return res.status(500).json({ message: "Error fetching categories", error });
+        res.status(500).json({ message: "Error fetching categories", error });
     }
 };
 
-export const getCategoryById = async (req: Request, res: Response) => {
+export const getCategoryById: RequestHandler = async (req, res, next) => {
     try {
         const id = req.params.id as string;
         const category = await CategoryService.getCategoryById(id);
         if (!category) {
-            return res.status(404).json({ message: "Category not found" });
+            res.status(404).json({ message: "Category not found" });
+            return;
         }
-        return res.status(200).json(category);
+        res.status(200).json(category);
     } catch (error) {
         logger.error("Error fetching category", error);
-        return res.status(500).json({ message: "Error fetching category", error });
+        res.status(500).json({ message: "Error fetching category", error });
     }
 };
 
-export const updateCategory = async (req: Request, res: Response) => {
+export const updateCategory: RequestHandler = async (req, res, next) => {
     try {
         const id = req.params.id as string;
-        if (req.file) {
-            req.body.image = req.file.path;
+        const data = { ...req.body };
+        if ((req as any).file) {
+            data.image = (req as any).file.path;
         }
-        const category = await CategoryService.updateCategory(id, req.body);
+
+        const category = await CategoryService.updateCategory(id, data);
         if (!category) {
-            return res.status(404).json({ message: "Category not found" });
+            res.status(404).json({ message: "Category not found" });
+            return;
         }
-        return res.status(200).json(category);
+        res.status(200).json(category);
     } catch (error) {
         logger.error("Error updating category", error);
-        return res.status(500).json({ message: "Error updating category", error });
+        res.status(500).json({ message: "Error updating category", error });
     }
 };
 
-export const deleteCategory = async (req: Request, res: Response) => {
+export const deleteCategory: RequestHandler = async (req, res, next) => {
     try {
         const id = req.params.id as string;
         const category = await CategoryService.deleteCategory(id);
         if (!category) {
-            return res.status(404).json({ message: "Category not found" });
+            res.status(404).json({ message: "Category not found" });
+            return;
         }
-        return res.status(200).json({ message: "Category deleted successfully" });
+        res.status(200).json({ message: "Category deleted successfully" });
     } catch (error) {
         logger.error("Error deleting category", error);
-        return res.status(500).json({ message: "Error deleting category", error });
+        res.status(500).json({ message: "Error deleting category", error });
     }
 };

@@ -1,5 +1,7 @@
 import Product, { type IProduct } from "../models/Product.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+import CartItem from "../models/Cart.js";
+import WishlistItem from "../models/Wishlist.js";
 
 interface ProductFilter {
     categoryId?: string;
@@ -100,9 +102,35 @@ class ProductService {
     async deleteProduct(id: string): Promise<IProduct | null> {
         return await Product.findOneAndUpdate(
             { _id: id, isDeleted: false },
-            { $set: { isDeleted: true } },
+            { $set: { isDeleted: true, isActive: false } }, // Soft remove
             { new: true }
         );
+    }
+
+    async getSimilarProducts(id: string, limit: number = 6): Promise<IProduct[]> {
+        const product = await Product.findById(id);
+        if (!product) return [];
+
+        return await Product.find({
+            categoryId: product.categoryId,
+            _id: { $ne: id }, // Exclude current product
+            isDeleted: false,
+            isActive: true
+        })
+            .limit(limit)
+            .populate("categoryId", "name");
+    }
+
+    async getTopProducts(limit: number = 10): Promise<IProduct[]> {
+        // Logic: "Low stock high sales" -> Products with lowest stock are assumed to be selling best
+        return await Product.find({
+            isDeleted: false,
+            isActive: true,
+            stock: { $gt: 0 } // Ensure available
+        })
+            .sort({ stock: 1 }) // Ascending stock (lower stock first)
+            .limit(limit)
+            .populate("categoryId", "name");
     }
 }
 

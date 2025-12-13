@@ -19,6 +19,12 @@ class CartService {
         },
       },
       { $unwind: "$product" },
+      // Filter out deleted or inactive products (Option B: Soft Delete)
+      {
+        $match: {
+          "product.isDeleted": false
+        }
+      },
 
       {
         $addFields: {

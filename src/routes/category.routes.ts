@@ -9,14 +9,21 @@ import {
 import { categoryValidators } from "../validators/category.validators.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { requireRole } from "../middlewares/role.middleware.js";
-import { validateRequest } from "../middlewares/validate.middleware.js";
 import { upload } from "../middlewares/upload.middleware.js";
+import { validateBody, validateParams } from "../middlewares/zod.middleware.js";
 
 const router = Router();
 
+// Protected routes (Manager only)
+router.get(
+    "/manager",
+    authenticate,
+    requireRole(["manager", "admin"]),
+    getAllCategories
+);
+
 // Public routes
-router.get("/", getAllCategories);
-router.get("/:id", getCategoryById);
+router.get("/:id", validateParams(categoryValidators.categoryIdSchema), getCategoryById);
 
 // Protected routes (Manager only)
 router.post(
@@ -24,8 +31,7 @@ router.post(
     authenticate,
     requireRole(["manager", "admin"]),
     upload.single("image"),
-    categoryValidators.create,
-    validateRequest,
+    validateBody(categoryValidators.createCategorySchema),
     createCategory
 );
 
@@ -34,8 +40,8 @@ router.put(
     authenticate,
     requireRole(["manager", "admin"]),
     upload.single("image"),
-    categoryValidators.update,
-    validateRequest,
+    validateParams(categoryValidators.categoryIdSchema),
+    validateBody(categoryValidators.updateCategorySchema),
     updateCategory
 );
 
@@ -43,8 +49,7 @@ router.delete(
     "/:id",
     authenticate,
     requireRole(["manager", "admin"]),
-    categoryValidators.delete,
-    validateRequest,
+    validateParams(categoryValidators.categoryIdSchema),
     deleteCategory
 );
 
