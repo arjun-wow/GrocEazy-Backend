@@ -9,6 +9,7 @@ import categoryRoutes from "./category.routes.js";
 import productRoutes from "./product.routes.js";
 import wishListRoutes from "./wishlist.routes.js";
 import supportRoutes from "./support.routes.js";
+import orderRoutes from "./order.routes.js";
 const router = Router();
 
 // Auth Routes (cleanly separated)
@@ -22,5 +23,6 @@ router.use("/categories", categoryRoutes);
 router.use("/products", productRoutes);
 router.use("/cart", cartRoutes);
 router.use("/wishlist", wishListRoutes);
+router.use("/orders", orderRoutes);
 router.use("/support", supportRoutes);
 export default router;
