@@ -9,6 +9,7 @@ export interface Address {
   postalCode: string;
   phone: string;
   isDefault?: boolean;
+  _id?: string;
 }
 
 export interface IUser extends Document {
@@ -36,7 +37,7 @@ const AddressSchema = new Schema({
   postalCode: String,
   phone: String,
   isDefault: { type: Boolean, default: false },
-});
+}, { _id: true });
 
 const UserSchema = new Schema<IUser>({
   name: String,

@@ -8,15 +8,16 @@ import cartRoutes from "./cart.routes.js";
 import categoryRoutes from "./category.routes.js";
 import productRoutes from "./product.routes.js";
 import wishListRoutes from "./wishlist.routes.js";
-import supportRoutes from "./support.routes.js";
+import userRoutes from "./user.routes.js";
 import orderRoutes from "./order.routes.js";
+import supportRoutes from "./support.routes.js";
 const router = Router();
 
 // Auth Routes (cleanly separated)
 router.use("/auth", authRoutes);
 
 // Protected
-router.get("/me", authenticate, userController.me);
+router.use("/users", userRoutes); // Includes /users/me for profile management
 
 // Feature routes
 router.use("/categories", categoryRoutes);
