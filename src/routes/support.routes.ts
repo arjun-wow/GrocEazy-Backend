@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import {
   createTicket,
-  getMyTickets,
   getAllTickets,
   updateTicketStatus,
   assignManager,
@@ -34,7 +33,7 @@ router.get(
   '/my',
   authenticate,
   requireRole(['customer']),
-  getMyTickets
+  getAllTickets
 );
 
 

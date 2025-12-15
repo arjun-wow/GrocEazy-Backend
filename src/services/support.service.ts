@@ -1,5 +1,5 @@
-import mongoose from 'mongoose';
-import SupportTicket from '../models/SupportTicket.js';
+import mongoose from "mongoose";
+import SupportTicket from "../models/SupportTicket.js";
 
 class SupportService {
   async createTicket(
@@ -14,61 +14,40 @@ class SupportService {
     });
   }
 
-  async getMyTickets(userId: string) {
-    return SupportTicket.aggregate([
-      {
-        $match: {
-          userId: new mongoose.Types.ObjectId(userId),
-          isDeleted: false,
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'assignedManagerId',
-          foreignField: '_id',
-          as: 'assignedManager',
-        },
-      },
-      { $unwind: { path: '$assignedManager', preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          subject: 1,
-          description: 1,
-          status: 1,
-          createdAt: 1,
-          assignedManager: {
-            _id: 1,
-            name: 1,
-            email: 1,
-          },
-        },
-      },
-      { $sort: { createdAt: -1 } },
-    ]);
-  }
+  async getAllTickets(userId: string, role: string) {
+    const match: any = { isDeleted: false };
 
-  async getAllTickets() {
+    if (role === "manager") {
+      match.assignedManagerId = new mongoose.Types.ObjectId(userId);
+    } else if (role === "customer") {
+      match.userId = new mongoose.Types.ObjectId(userId);
+    }
+
     return SupportTicket.aggregate([
-      { $match: { isDeleted: false } },
+      { $match: match },
       {
         $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'user',
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "user",
         },
       },
-      { $unwind: '$user' },
+      { $unwind: "$user" },
       {
         $lookup: {
-          from: 'users',
-          localField: 'assignedManagerId',
-          foreignField: '_id',
-          as: 'assignedManager',
+          from: "users",
+          localField: "assignedManagerId",
+          foreignField: "_id",
+          as: "assignedManager",
         },
       },
-      { $unwind: { path: '$assignedManager', preserveNullAndEmptyArrays: true } },
+      {
+        $unwind: {
+          path: "$assignedManager",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
       {
         $project: {
           subject: 1,
@@ -76,9 +55,10 @@ class SupportService {
           status: 1,
           createdAt: 1,
           user: { _id: 1, name: 1, email: 1 },
-          assignedManager: { _id: 1, name: 1 },
+          assignedManager: { _id: 1, name: 1, email: 1 },
         },
       },
+      { $sort: { createdAt: -1 } },
     ]);
   }
 
@@ -93,7 +73,10 @@ class SupportService {
   async assignManager(ticketId: string, managerId: string) {
     return SupportTicket.findByIdAndUpdate(
       ticketId,
-      { assignedManagerId: managerId, status: 'in_progress' },
+      {
+        assignedManagerId: managerId,
+        status: "in_progress",
+      },
       { new: true }
     );
   }

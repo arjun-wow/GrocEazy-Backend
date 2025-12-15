@@ -1,7 +1,10 @@
-import type { Response } from 'express';
-import type { AuthRequest } from '../types/AuthRequest.js';
-import SupportService from '../services/support.service.js';
+import type { Response } from "express";
+import type { AuthRequest } from "../types/AuthRequest.js";
+import SupportService from "../services/support.service.js";
 
+/**
+ * CREATE TICKET (Customer)
+ */
 export const createTicket = async (req: AuthRequest, res: Response) => {
   try {
     const { subject, description } = req.body;
@@ -14,7 +17,7 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Support ticket created',
+      message: "Support ticket created",
       ticket,
     });
   } catch (err: any) {
@@ -25,11 +28,15 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getMyTickets = async (req: AuthRequest, res: Response) => {
+/**
+ * GET TICKETS (ADMIN / MANAGER / CUSTOMER)
+ */
+export const getAllTickets = async (req: AuthRequest, res: Response) => {
   try {
-    const tickets = await SupportService.getMyTickets(
-      req.user!._id.toString()
-    );
+    const userId = req.user!._id.toString();
+    const role= req.user!.role; // ✅ typed via AuthRequest
+
+    const tickets = await SupportService.getAllTickets(userId, role);
 
     return res.json({
       success: true,
@@ -43,23 +50,13 @@ export const getMyTickets = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getAllTickets = async (_req: AuthRequest, res: Response) => {
-  try {
-    const tickets = await SupportService.getAllTickets();
-
-    return res.json({
-      success: true,
-      tickets,
-    });
-  } catch (err: any) {
-    return res.status(500).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-export const updateTicketStatus = async (req: AuthRequest, res: Response) => {
+/**
+ * UPDATE TICKET STATUS (Admin / Manager)
+ */
+export const updateTicketStatus = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
     const ticketId = req.params.ticketId as string;
     const { status } = req.body;
@@ -68,7 +65,7 @@ export const updateTicketStatus = async (req: AuthRequest, res: Response) => {
 
     return res.json({
       success: true,
-      message: 'Ticket status updated',
+      message: "Ticket status updated",
     });
   } catch (err: any) {
     return res.status(400).json({
@@ -78,6 +75,9 @@ export const updateTicketStatus = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * ASSIGN MANAGER (Admin)
+ */
 export const assignManager = async (req: AuthRequest, res: Response) => {
   try {
     const ticketId = req.params.ticketId as string;
@@ -87,7 +87,7 @@ export const assignManager = async (req: AuthRequest, res: Response) => {
 
     return res.json({
       success: true,
-      message: 'Manager assigned',
+      message: "Manager assigned",
     });
   } catch (err: any) {
     return res.status(400).json({
@@ -97,6 +97,9 @@ export const assignManager = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * DELETE TICKET (Soft delete)
+ */
 export const deleteTicket = async (req: AuthRequest, res: Response) => {
   try {
     const ticketId = req.params.ticketId as string;
@@ -105,7 +108,7 @@ export const deleteTicket = async (req: AuthRequest, res: Response) => {
 
     return res.json({
       success: true,
-      message: 'Ticket deleted',
+      message: "Ticket deleted",
     });
   } catch (err: any) {
     return res.status(400).json({
