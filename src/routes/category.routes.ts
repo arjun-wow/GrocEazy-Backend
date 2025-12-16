@@ -23,6 +23,7 @@ router.get(
 );
 
 // Public routes
+router.get("/", getAllCategories);
 router.get("/:id", validateParams(categoryValidators.categoryIdSchema), getCategoryById);
 
 // Protected routes (Manager only)
