@@ -11,11 +11,11 @@ router.use(authenticate);
 // Public-ish (Authenticated User)
 router.get("/me", userController.me);
 
-// Admin / Manager Routes
-const adminManager = ["admin", "manager"];
+// Admin Only Routes
+const adminOnly = ["admin"];
 
-router.get("/", authorize(adminManager), userController.getAllUsers);
-router.get("/:id", authorize(adminManager), userController.getUserById);
-router.patch("/:id/status", authorize(adminManager), userController.updateUserStatus);
+router.get("/", authorize(adminOnly), userController.getAllUsers);
+router.get("/:id", authorize(adminOnly), userController.getUserById);
+router.patch("/:id/status", authorize(adminOnly), userController.updateUserStatus);
 
 export default router;

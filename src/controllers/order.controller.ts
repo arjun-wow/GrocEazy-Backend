@@ -145,3 +145,29 @@ export const cancelOrder = async (req: Request, res: Response) => {
             .json({ message: "Failed to cancel order", error: error.message });
     }
 };
+
+export const getAllOrders = async (req: Request, res: Response) => {
+    try {
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const skip = (page - 1) * limit;
+
+        const total = await Order.countDocuments();
+        const orders = await Order.find()
+            .populate("userId", "name email")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        res.json({
+            orders,
+            pagination: {
+                total,
+                page,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (error: any) {
+        res.status(500).json({ message: "Failed to fetch all orders", error: error.message });
+    }
+};

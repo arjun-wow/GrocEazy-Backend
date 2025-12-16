@@ -12,6 +12,9 @@ import orderRoutes from "./order.routes.js";
 import userRoutes from "./user.routes.js";
 import wishListRoutes from "./wishlist.routes.js";
 
+import analyticsRoutes from "./analytics.routes.js";
+import inventoryRoutes from "./inventory.routes.js";
+
 const router = Router();
 
 // Auth Routes (cleanly separated)
@@ -23,8 +26,10 @@ router.use("/users", userRoutes); // /users/me, /users/ (list), etc.
 // Feature routes
 router.use("/categories", categoryRoutes);
 router.use("/products", productRoutes);
+router.use("/inventory", inventoryRoutes);
 router.use("/cart", cartRoutes);
 router.use("/wishlist", wishListRoutes);
 router.use("/orders", orderRoutes);
 router.use("/support", supportRoutes);
+router.use("/analytics", analyticsRoutes);
 export default router;
