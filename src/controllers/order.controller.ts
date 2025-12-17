@@ -102,3 +102,44 @@ export const getAllOrders = async (req: Request, res: Response) => {
         res.status(500).json({ message: "Failed to fetch all orders", error: error.message });
     }
 };
+
+export const fetchAllUsersOrders = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    const result = await orderService.getAllOrders(page, limit);
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({
+      message: "Failed to fetch orders",
+      error: error.message,
+    });
+  }
+};
+
+export const changeOrderStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const order = await orderService.updateOrderStatus(id, status);
+
+    res.json({
+      message: "Order status updated successfully",
+      order,
+    });
+  } catch (error: any) {
+    if (
+      error.message.includes("Invalid") ||
+      error.message.includes("cannot")
+    ) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    res.status(500).json({
+      message: "Failed to update order status",
+      error: error.message,
+    });
+  }
+};
