@@ -116,6 +116,11 @@ export const getAllOrders = async (
 
   const orders = await Order.find()
     .populate("userId", "name email")
+    .populate({
+      path: "items.productId",
+      model: "Product",
+      select: "name images price",
+    })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -129,6 +134,8 @@ export const getAllOrders = async (
     },
   };
 };
+
+
 
 const ALLOWED_STATUSES = [
   "Pending",

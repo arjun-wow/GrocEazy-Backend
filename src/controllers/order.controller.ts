@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import * as orderService from "../services/order.service.js";
-
+import Order from "../models/Order.js";
 // Helper to get user ID from request
 const getUserId = (req: Request): string => {
     const user = (req as any).user;
