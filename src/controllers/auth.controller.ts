@@ -1,7 +1,7 @@
 // src/controllers/auth.controller.ts
 import type { Request, Response } from "express";
 import * as authService from "../services/auth.service.js";
-import { registerSchema, loginSchema, googleLoginSchema } from "../validators/auth.validator.js";
+import { registerSchema, loginSchema, googleLoginSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.validator.js";
 import { logger } from "../utils/logger.js";
 import { z } from "zod";
 import config from "../config/index.js";
@@ -62,6 +62,8 @@ export async function login(req: Request, res: Response) {
       email: user!.email,
       role: user!.role,
       phone: user!.phone || "",
+      hasPassword: !!user!.password,
+      isActive: !!user!.isActive,
       addresses: user!.addresses || []
     }
   });
@@ -96,6 +98,8 @@ export async function googleLogin(req: Request, res: Response) {
       email: user!.email,
       role: user!.role,
       phone: user!.phone || "",
+      hasPassword: !!user!.password,
+      isActive: !!user!.isActive,
       addresses: user!.addresses || []
     }
   });
@@ -128,6 +132,7 @@ export async function refresh(req: Request, res: Response) {
       email: user.email,
       role: user.role,
       phone: user.phone || "",
+      hasPassword: !!user.password,
       addresses: user.addresses || []
     }
   });
@@ -147,4 +152,57 @@ export async function verifyEmail(req: Request, res: Response) {
   if (!id || !token) return res.status(400).json({ message: "Invalid request" });
   await authService.verifyEmail(id, token);
   return res.json({ message: "Email verified" });
+}
+
+export async function setPassword(req: Request, res: Response) {
+  const parse = setPasswordSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
+
+  // req.user is populated by authenticate middleware (which we need to make sure is used in routes)
+  // Assuming req.user.id exists.
+  const userId = (req as any).user?.id;
+  if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+  await authService.setPassword(userId, parse.data.password);
+  return res.json({ message: "Password updated successfully" });
+}
+
+export async function forgotPassword(req: Request, res: Response) {
+  const parse = forgotPasswordSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
+
+  const result = await authService.forgotPassword(parse.data.email);
+  if (result) {
+    const { user, compositeToken } = result;
+    // Send email with link
+    // Link format: FRONTEND_URL/reset-password?token=...
+    // Or /reset-password/<token>
+    // Prompt said: POST /api/auth/reset-password/:token
+    // Frontend likely has route /reset-password/:token
+
+    // We need to construct the link.
+    const link = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password/${encodeURIComponent(compositeToken)}`;
+
+    // Use a generic email helper or create template?
+    // Using simple text for now or update email util?
+    // Let's use sendEmail with custom text.
+    const subject = "Reset Your Password";
+    const text = `Hello ${user.name},\n\nPlease click the link below to reset your password:\n\n${link}\n\nThis link expires in 1 hour.\n\nRegards,\nGrocEazy`;
+
+    sendEmail(user.email, subject, text).catch(err => logger.error("Failed to send reset email", err));
+  }
+
+  // Always return success to prevent email enumeration
+  return res.json({ message: "If email exists, a reset link has been sent." });
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  const { token } = req.params;
+  const parse = resetPasswordSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
+
+  if (!token) return res.status(400).json({ message: "Token required" });
+
+  await authService.resetPassword(token, parse.data.password);
+  return res.json({ message: "Password reset successfully. You can now login with your new password." });
 }

@@ -73,6 +73,14 @@ export const updateUserStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Protection: Admin cannot deactivate other admins or themselves
+    if (user.role === "admin") {
+      return res.status(403).json({ message: "Cannot change status of an Admin account" });
+    }
+    if (user._id.toString() === (req as any).user._id.toString()) {
+      return res.status(403).json({ message: "Cannot change your own status" });
+    }
+
     if (typeof isActive === "boolean") user.isActive = isActive;
     if (typeof isDeleted === "boolean") user.isDeleted = isDeleted;
 
@@ -141,7 +149,11 @@ export const updateUserAddress = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Address ID is required" });
     }
 
-    const updatedUser = await userService.updateAddress(userId, addressId, addressData);
+    // Sanitization: Only allow specific fields
+    const { street, city, state, zipCode, country, isDefault } = addressData;
+    const sanitizedData = { street, city, state, zipCode, country, isDefault };
+
+    const updatedUser = await userService.updateAddress(userId, addressId, sanitizedData);
     res.json(updatedUser);
   } catch (error: any) {
     res.status(500).json({ message: "Failed to update address", error: error.message });
