@@ -1,6 +1,7 @@
 // src/controllers/user.controller.ts
 import type { Request, Response } from "express";
 import { User } from "../models/User.js";
+import * as userService from "../services/user.service.js";
 
 export async function me(req: Request, res: Response) {
   const user = (req as any).user;
@@ -8,86 +9,143 @@ export async function me(req: Request, res: Response) {
   res.json({ user });
 }
 
-export const updateProfile = async (req: Request, res: Response) => {
+export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
-    const { name, phone } = req.body;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
-    const updatedUser = await User.findByIdAndUpdate(
-      user._id,
-      { $set: { name, phone } },
-      { new: true }
-    ).select("-password -emailVerificationTokenHash -emailVerificationExpires");
+    const role = req.query.role;
+    const query: any = {};
+    if (role) {
+      query.role = role;
+    }
 
-    res.json(updatedUser);
+    const users = await User.find(query)
+      .select("-password -emailVerificationTokenHash -emailVerificationExpires")
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const total = await User.countDocuments(query);
+
+    res.json({
+      users,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to update profile", error: error.message });
+    res.status(500).json({ message: "Failed to fetch users", error: error.message });
   }
 };
 
-export const addAddress = async (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user._id;
-    const addressData = req.body;
+    const { id } = req.params;
+    const user = await User.findById(id).select("-password -emailVerificationTokenHash -emailVerificationExpires");
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // If making this default, unset others
-    if (addressData.isDefault) {
-      user.addresses.forEach((addr) => (addr.isDefault = false));
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    user.addresses.push(addressData);
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to fetch user", error: error.message });
+  }
+};
+
+export const updateUserStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { isActive, isDeleted } = req.body;
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (typeof isActive === "boolean") user.isActive = isActive;
+    if (typeof isDeleted === "boolean") user.isDeleted = isDeleted;
+
     await user.save();
 
-    res.json(user.addresses);
+    res.json({ message: "User status updated", user });
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to update user status", error: error.message });
+  }
+};
+
+// --- Profile & Address Management ---
+
+export const getProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user._id;
+    const user = await userService.getProfile(userId);
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ message: "Failed to fetch profile", error: error.message });
+  }
+};
+
+export const updateMyProfile = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user._id;
+    const { name, phone } = req.body;
+    const updatedUser = await userService.updateProfile(userId, { name, phone });
+    res.json(updatedUser);
+  } catch (error: any) {
+    res.status(400).json({ message: "Failed to update profile", error: error.message });
+  }
+};
+
+export const addUserAddress = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user._id;
+    const { street, city, state, zipCode, country, isDefault } = req.body;
+
+    // Basic validation
+    if (!street || !city || !state || !zipCode || !country) {
+      return res.status(400).json({ message: "Missing required address fields" });
+    }
+
+    const updatedUser = await userService.addAddress(userId, { street, city, state, zipCode, country, isDefault });
+    res.json(updatedUser);
   } catch (error: any) {
     res.status(500).json({ message: "Failed to add address", error: error.message });
   }
 };
 
-export const updateAddress = async (req: Request, res: Response) => {
+export const updateUserAddress = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user._id;
-    const { id } = req.params; // address id
-    const updates = req.body;
+    const { addressId } = req.params;
+    const addressData = req.body;
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    const addressIndex = user.addresses.findIndex((addr: any) => addr._id.toString() === id);
-    if (addressIndex === -1) {
-      return res.status(404).json({ message: "Address not found" });
+    if (!addressId) {
+      return res.status(400).json({ message: "Address ID is required" });
     }
 
-    if (updates.isDefault) {
-      user.addresses.forEach((addr) => (addr.isDefault = false));
-    }
-
-    // Merge updates
-    const currentAddr = (user.addresses[addressIndex] as any).toObject();
-    user.addresses[addressIndex] = { ...currentAddr, ...updates, _id: currentAddr._id };
-
-    await user.save();
-    res.json(user.addresses);
+    const updatedUser = await userService.updateAddress(userId, addressId, addressData);
+    res.json(updatedUser);
   } catch (error: any) {
     res.status(500).json({ message: "Failed to update address", error: error.message });
   }
 };
 
-export const deleteAddress = async (req: Request, res: Response) => {
+export const deleteUserAddress = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user._id;
-    const { id } = req.params;
+    const { addressId } = req.params;
 
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!addressId) {
+      return res.status(400).json({ message: "Address ID is required" });
+    }
 
-    user.addresses = user.addresses.filter((addr: any) => addr._id.toString() !== id);
-    await user.save();
-
-    res.json(user.addresses);
+    const updatedUser = await userService.deleteAddress(userId, addressId);
+    res.json(updatedUser);
   } catch (error: any) {
     res.status(500).json({ message: "Failed to delete address", error: error.message });
   }

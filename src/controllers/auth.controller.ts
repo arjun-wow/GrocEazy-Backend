@@ -47,7 +47,17 @@ export async function login(req: Request, res: Response) {
     maxAge: config.jwt.refreshTokenExpiresDays * 24 * 60 * 60 * 1000,
   });
 
-  return res.json({ accessToken, user: { id: user!._id, email: user.email, role: user.role } });
+  return res.json({
+    accessToken,
+    user: {
+      id: user!._id,
+      name: user!.name,
+      email: user!.email,
+      role: user!.role,
+      phone: user!.phone || "",
+      addresses: user!.addresses || []
+    }
+  });
 }
 
 export async function googleLogin(req: Request, res: Response) {
@@ -71,7 +81,17 @@ export async function googleLogin(req: Request, res: Response) {
     maxAge: config.jwt.refreshTokenExpiresDays * 24 * 60 * 60 * 1000,
   });
 
-  return res.json({ accessToken, user: { id: user!._id, email: user.email, role: user.role } });
+  return res.json({
+    accessToken,
+    user: {
+      id: user!._id,
+      name: user!.name,
+      email: user!.email,
+      role: user!.role,
+      phone: user!.phone || "",
+      addresses: user!.addresses || []
+    }
+  });
 }
 
 export async function refresh(req: Request, res: Response) {
@@ -93,7 +113,17 @@ export async function refresh(req: Request, res: Response) {
     sameSite,
     maxAge: config.jwt.refreshTokenExpiresDays * 24 * 60 * 60 * 1000,
   });
-  return res.json({ accessToken, user: { id: user._id, email: user.email, role: user.role } });
+  return res.json({
+    accessToken,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone || "",
+      addresses: user.addresses || []
+    }
+  });
 }
 
 export async function logout(req: Request, res: Response) {
