@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { User } from "../models/User.js";
 import * as userService from "../services/user.service.js";
+import { sendEmail, getAccountStatusEmail } from "../utils/email.util.js";
 
 export async function me(req: Request, res: Response) {
   const user = (req as any).user;
@@ -76,6 +77,13 @@ export const updateUserStatus = async (req: Request, res: Response) => {
     if (typeof isDeleted === "boolean") user.isDeleted = isDeleted;
 
     await user.save();
+
+    // Send Account Status Email if active status changed (implicit check, ideally check dirty)
+    // Here we just send if isActive was part of the body
+    if (typeof isActive === "boolean") {
+      const { subject, text } = getAccountStatusEmail(user.name, isActive);
+      sendEmail(user.email, subject, text).catch(err => console.error("Failed to send account status email", err));
+    }
 
     res.json({ message: "User status updated", user });
   } catch (error: any) {

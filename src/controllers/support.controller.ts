@@ -63,7 +63,7 @@ export const updateTicketStatus = async (
     const { ticketId } = req.params;
     const { status } = req.body;
 
-    await SupportService.updateStatus(ticketId, status);
+    await SupportService.updateStatus(ticketId as string, status);
 
     return res.json({
       success: true,
@@ -82,7 +82,7 @@ export const updateTicketStatus = async (
  */
 export const deleteTicket = async (req: AuthRequest, res: Response) => {
   try {
-    const { ticketId } = req.params;
+    const ticketId = req.params.ticketId as string;
 
     await SupportService.deleteTicket(ticketId);
 

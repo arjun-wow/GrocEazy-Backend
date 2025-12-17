@@ -1,144 +1,150 @@
-import mongoose from "mongoose";
 import SupportTicket from "../models/SupportTicket.js";
 import { User } from "../models/User.js";
+import {
+  sendEmail,
+  getTicketCreatedEmail,
+  getTicketAssignedEmail,
+  getTicketStatusUpdateEmail,
+  getTicketResolvedEmail,
+} from "../utils/email.util.js";
 
 class SupportService {
-  /**
-   * CREATE TICKET WITH AUTO MANAGER ASSIGNMENT
-   */
-  async createTicket(
+  // CREATE TICKET
+  static async createTicket(
     userId: string,
     subject: string,
     description: string
   ) {
-    // Get all active managers
-    const managers = await User.find(
-      { role: "manager", isDeleted: false },
-      { _id: 1 }
-    );
+    // 1. Find least busy manager
+    const manager = await User.findOne({
+      role: "manager",
+      isActive: true,
+      isDeleted: false,
+    }).sort({ assignedTicketsCount: 1 }); // optional metric
 
-    let assignedManagerId: mongoose.Types.ObjectId | null = null;
-
-    if (managers.length > 0) {
-      // Count open & in-progress tickets per manager
-      const ticketCounts = await SupportTicket.aggregate([
-        {
-          $match: {
-            assignedManagerId: { $ne: null },
-            status: { $in: ["open", "in_progress"] },
-            isDeleted: false,
-          },
-        },
-        {
-          $group: {
-            _id: "$assignedManagerId",
-            count: { $sum: 1 },
-          },
-        },
-      ]);
-
-      const countMap = new Map<string, number>();
-      ticketCounts.forEach((t) =>
-        countMap.set(t._id.toString(), t.count)
-      );
-
-      // Pick manager with least tickets
-      managers.sort((a, b) => {
-        const aCount = countMap.get(a._id.toString()) ?? 0;
-        const bCount = countMap.get(b._id.toString()) ?? 0;
-        return aCount - bCount;
-      });
-
-      assignedManagerId = managers[0]._id;
+    if (!manager) {
+      throw new Error("No manager available");
     }
 
-    return SupportTicket.create({
+    // 2. Create ticket
+    const ticket = await SupportTicket.create({
       userId,
       subject,
       description,
-      assignedManagerId,
-      status: assignedManagerId ? "in_progress" : "open",
+      assignedManagerId: manager._id,
+    });
+
+    // 3. Fetch customer
+    const customer = await User.findById(userId);
+
+    // 4. Send emails (NON-BLOCKING)
+    if (customer?.email) {
+      const mail = getTicketCreatedEmail(
+        customer.name,
+        ticket._id.toString(),
+        subject
+      );
+
+      sendEmail(customer.email, mail.subject, mail.text);
+    }
+
+    if (manager.email) {
+      const mail = getTicketAssignedEmail(
+        manager.name,
+        ticket._id.toString()
+      );
+
+      sendEmail(manager.email, mail.subject, mail.text);
+    }
+
+    return ticket;
+  }
+
+  // GET TICKETS
+  static async getAllTickets(userId: string, role: string) {
+    if (role === "customer") {
+      return SupportTicket.find({
+        userId,
+        isDeleted: false,
+      }).sort({ createdAt: -1 });
+    }
+
+    if (role === "manager") {
+      return SupportTicket.find({
+        assignedManagerId: userId,
+        isDeleted: false,
+      }).sort({ createdAt: -1 });
+    }
+
+    return SupportTicket.find({ isDeleted: false }).sort({
+      createdAt: -1,
     });
   }
 
-  /**
-   * GET TICKETS BASED ON ROLE
-   */
-  async getAllTickets(userId: string, role: string) {
-    const match: any = { isDeleted: false };
-
-    if (role === "manager") {
-      match.assignedManagerId = new mongoose.Types.ObjectId(userId);
-    }
-
-    if (role === "customer") {
-      match.userId = new mongoose.Types.ObjectId(userId);
-    }
-
-    return SupportTicket.aggregate([
-      { $match: match },
-      {
-        $lookup: {
-          from: "users",
-          localField: "userId",
-          foreignField: "_id",
-          as: "user",
-        },
-      },
-      { $unwind: "$user" },
-      {
-        $lookup: {
-          from: "users",
-          localField: "assignedManagerId",
-          foreignField: "_id",
-          as: "assignedManager",
-        },
-      },
-      {
-        $unwind: {
-          path: "$assignedManager",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          subject: 1,
-          description: 1,
-          status: 1,
-          createdAt: 1,
-          user: { _id: 1, name: 1, email: 1 },
-          assignedManager: { _id: 1, name: 1, email: 1 },
-        },
-      },
-      { $sort: { createdAt: -1 } },
-    ]);
-  }
-
-  /**
-   * UPDATE STATUS
-   * Resolved tickets cannot be changed again
-   */
-  async updateStatus(ticketId: string, status: string) {
+  // UPDATE STATUS
+  static async updateStatus(ticketId: string, status: string) {
     const ticket = await SupportTicket.findById(ticketId);
 
-    if (!ticket) throw new Error("Ticket not found");
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
 
     if (ticket.status === "resolved") {
       throw new Error("Resolved ticket cannot be updated");
     }
 
-    ticket.status = status;
+    ticket.status = status as any;
     await ticket.save();
+
+    // Fetch users
+    const customer = await User.findById(ticket.userId);
+    const manager = ticket.assignedManagerId
+      ? await User.findById(ticket.assignedManagerId)
+      : null;
+
+    // Notify customer on any update
+    if (customer?.email) {
+      const mail = getTicketStatusUpdateEmail(
+        customer.name,
+        ticket._id.toString(),
+        status
+      );
+
+      sendEmail(customer.email, mail.subject, mail.text);
+    }
+
+    // Notify both on resolved
+    if (status === "resolved") {
+      if (customer?.email) {
+        const mail = getTicketResolvedEmail(
+          customer.name,
+          ticket._id.toString()
+        );
+
+        sendEmail(customer.email, mail.subject, mail.text);
+      }
+
+      if (manager?.email) {
+        const mail = getTicketResolvedEmail(
+          manager.name,
+          ticket._id.toString()
+        );
+
+        sendEmail(manager.email, mail.subject, mail.text);
+      }
+    }
+
+    return ticket;
   }
 
-  /**
-   * SOFT DELETE
-   */
-  async deleteTicket(ticketId: string) {
-    await SupportTicket.findByIdAndUpdate(ticketId, {
-      isDeleted: true,
-    });
+  // DELETE (SOFT)
+  static async deleteTicket(ticketId: string) {
+    const ticket = await SupportTicket.findById(ticketId);
+    if (!ticket) throw new Error("Ticket not found");
+
+    ticket.isDeleted = true;
+    await ticket.save();
   }
 }
 
-export default new SupportService();
+export default SupportService;
