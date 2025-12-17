@@ -4,6 +4,7 @@ import SupportService from "../services/support.service.js";
 
 /**
  * CREATE TICKET (Customer)
+ * Auto assigns manager with least tickets
  */
 export const createTicket = async (req: AuthRequest, res: Response) => {
   try {
@@ -29,12 +30,12 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * GET TICKETS (ADMIN / MANAGER / CUSTOMER)
+ * GET TICKETS (Admin / Manager / Customer)
  */
 export const getAllTickets = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!._id.toString();
-    const role= req.user!.role; // ✅ typed via AuthRequest
+    const role = req.user!.role;
 
     const tickets = await SupportService.getAllTickets(userId, role);
 
@@ -51,14 +52,15 @@ export const getAllTickets = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * UPDATE TICKET STATUS (Admin / Manager)
+ * UPDATE STATUS (Manager / Admin)
+ * Once resolved → cannot change again
  */
 export const updateTicketStatus = async (
   req: AuthRequest,
   res: Response
 ) => {
   try {
-    const ticketId = req.params.ticketId as string;
+    const { ticketId } = req.params;
     const { status } = req.body;
 
     await SupportService.updateStatus(ticketId, status);
@@ -76,33 +78,11 @@ export const updateTicketStatus = async (
 };
 
 /**
- * ASSIGN MANAGER (Admin)
- */
-export const assignManager = async (req: AuthRequest, res: Response) => {
-  try {
-    const ticketId = req.params.ticketId as string;
-    const { managerId } = req.body;
-
-    await SupportService.assignManager(ticketId, managerId);
-
-    return res.json({
-      success: true,
-      message: "Manager assigned",
-    });
-  } catch (err: any) {
-    return res.status(400).json({
-      success: false,
-      message: err.message,
-    });
-  }
-};
-
-/**
  * DELETE TICKET (Soft delete)
  */
 export const deleteTicket = async (req: AuthRequest, res: Response) => {
   try {
-    const ticketId = req.params.ticketId as string;
+    const { ticketId } = req.params;
 
     await SupportService.deleteTicket(ticketId);
 
