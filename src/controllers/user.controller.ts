@@ -1,4 +1,3 @@
-// src/controllers/user.controller.ts
 import type { Request, Response } from "express";
 import { User } from "../models/User.js";
 import * as userService from "../services/user.service.js";
@@ -38,14 +37,18 @@ export const getAllUsers = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch users", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch users", error: error.message });
   }
 };
 
 export const getUserById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).select("-password -emailVerificationTokenHash -emailVerificationExpires");
+    const user = await User.findById(id).select(
+      "-password -emailVerificationTokenHash -emailVerificationExpires"
+    );
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -53,7 +56,9 @@ export const getUserById = async (req: Request, res: Response) => {
 
     res.json(user);
   } catch (error: any) {
-    res.status(500).json({ message: "Failed to fetch user", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Failed to fetch user", error: error.message });
   }
 };
 

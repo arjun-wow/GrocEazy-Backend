@@ -3,7 +3,7 @@ import {
   createTicket,
   getAllTickets,
   updateTicketStatus,
-  assignManager,
+  // assignManager,
   deleteTicket,
 } from '../controllers/support.controller.js';
 
@@ -53,14 +53,14 @@ router.patch(
   updateTicketStatus
 );
 
-router.patch(
-  '/:ticketId/assign',
-  authenticate,
-  requireRole(['admin', 'manager']),
-  validateParams(ticketIdParamSchema),
-  validateBody(assignManagerSchema),
-  assignManager
-);
+// router.patch(
+//   '/:ticketId/assign',
+//   authenticate,
+//   requireRole(['admin', 'manager']),
+//   validateParams(ticketIdParamSchema),
+//   validateBody(assignManagerSchema),
+//   assignManager
+// );
 
 router.delete(
   '/:ticketId',

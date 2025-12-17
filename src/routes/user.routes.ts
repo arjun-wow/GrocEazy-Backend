@@ -10,7 +10,7 @@ router.use(authenticate);
 
 // Profile
 router.get("/me", userController.me);
-router.patch("/me", userController.updateProfile);
+router.patch("/me", userController.updateMyProfile);
 
 // Profile and Address Management
 router.get("/profile", userController.getProfile);
