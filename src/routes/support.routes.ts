@@ -53,15 +53,6 @@ router.patch(
   updateTicketStatus
 );
 
-// router.patch(
-//   '/:ticketId/assign',
-//   authenticate,
-//   requireRole(['admin', 'manager']),
-//   validateParams(ticketIdParamSchema),
-//   validateBody(assignManagerSchema),
-//   assignManager
-// );
-
 router.delete(
   '/:ticketId',
   authenticate,

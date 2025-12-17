@@ -6,12 +6,19 @@ import { logger } from "../utils/logger.js";
 import { z } from "zod";
 import config from "../config/index.js";
 
+import { sendEmail, getWelcomeEmail } from "../utils/email.util.js";
+
 export async function register(req: Request, res: Response) {
   const parse = registerSchema.safeParse(req.body);
   if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
   const { name, email, password } = parse.data;
   const { user, verificationToken } = await authService.registerUser({ name, email, password });
-  // send email via mailer (not implemented here). Return minimal info.
+
+  // Send Welcome Email
+  const { subject, text } = getWelcomeEmail(user.name);
+  // Fire and forget email
+  sendEmail(user.email, subject, text).catch(err => logger.error("Failed to send welcome email", err));
+
   // Provide verification link in email like: `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}&id=${user._id}`
   // For dev convenience we return token here — remove in prod.
   return res.status(201).json({ message: "Registered. Check email for verification.", userId: user._id });
