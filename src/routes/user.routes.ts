@@ -5,17 +5,25 @@ import { authorize } from "../middlewares/authorize.middleware.js";
 
 const router = Router();
 
-// Apply auth middleware to all user routes
+// Apply auth middleware
 router.use(authenticate);
 
-// Public-ish (Authenticated User)
+// Profile
 router.get("/me", userController.me);
+router.patch("/me", userController.updateMyProfile);
 
-// Admin Only Routes
-const adminOnly = ["admin"];
+// Profile and Address Management
+router.get("/profile", userController.getProfile);
+router.put("/profile", userController.updateMyProfile);
+router.post("/address", userController.addUserAddress);
+router.put("/address/:addressId", userController.updateUserAddress);
+router.delete("/address/:addressId", userController.deleteUserAddress);
 
-router.get("/", authorize(adminOnly), userController.getAllUsers);
-router.get("/:id", authorize(adminOnly), userController.getUserById);
-router.patch("/:id/status", authorize(adminOnly), userController.updateUserStatus);
+// Admin / Manager Routes
+const adminManager = ["admin", "manager"];
+
+router.get("/", authorize(adminManager), userController.getAllUsers);
+router.get("/:id", authorize(adminManager), userController.getUserById);
+router.patch("/:id/status", authorize(adminManager), userController.updateUserStatus);
 
 export default router;

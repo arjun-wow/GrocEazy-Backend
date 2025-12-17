@@ -2,18 +2,19 @@
 import { Schema, model, Document } from "mongoose";
 
 export interface Address {
-  fullName: string;
-  line1: string;
+  _id?: string;
+  street: string;
   city: string;
   state: string;
-  postalCode: string;
-  phone: string;
-  isDefault?: boolean;
+  zipCode: string;
+  country: string;
+  isDefault: boolean;
 }
 
 export interface IUser extends Document {
   name: string;
   email: string;
+  phone?: string; // Added phone
   password?: string;
   googleId?: string;
   authProvider: "local" | "google";
@@ -29,19 +30,19 @@ export interface IUser extends Document {
 }
 
 const AddressSchema = new Schema({
-  fullName: String,
-  line1: String,
-  city: String,
-  state: String,
-  postalCode: String,
-  phone: String,
+  street: { type: String, required: true },
+  city: { type: String, required: true },
+  state: { type: String, required: true },
+  zipCode: { type: String, required: true },
+  country: { type: String, required: true },
   isDefault: { type: Boolean, default: false },
-});
+}, { _id: true });
 
 const UserSchema = new Schema<IUser>({
-  name: String,
-  email: { type: String, unique: true, index: true },
-  password: String,
+  name: { type: String, required: true },
+  email: { type: String, unique: true, index: true, required: true },
+  phone: { type: String }, // Added phone
+  password: { type: String },
   googleId: String,
   authProvider: { type: String, enum: ["local", "google"], default: "local" },
   role: { type: String, enum: ["customer", "manager", "admin"], default: "customer" },

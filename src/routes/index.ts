@@ -11,10 +11,8 @@ import supportRoutes from "./support.routes.js";
 import orderRoutes from "./order.routes.js";
 import userRoutes from "./user.routes.js";
 import wishListRoutes from "./wishlist.routes.js";
-
 import analyticsRoutes from "./analytics.routes.js";
 import inventoryRoutes from "./inventory.routes.js";
-
 const router = Router();
 
 // Auth Routes (cleanly separated)
