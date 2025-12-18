@@ -16,9 +16,17 @@ export const getAllUsers = async (req: Request, res: Response) => {
     const skip = (page - 1) * limit;
 
     const role = req.query.role;
+    const search = req.query.search as string;
     const query: any = {};
     if (role) {
       query.role = role;
+    }
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ];
     }
 
     const users = await User.find(query)
