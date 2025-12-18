@@ -48,10 +48,7 @@ class ProductService {
         }
 
         if (filter.search) {
-            query.$or = [
-                { name: { $regex: filter.search, $options: "i" } },
-                { description: { $regex: filter.search, $options: "i" } }
-            ];
+            query.$text = { $search: filter.search };
         }
 
         const skip = (page - 1) * limit;
