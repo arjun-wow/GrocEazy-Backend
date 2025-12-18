@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import { sendEmail, getLowStockEmail } from "../utils/email.util.js";
+import { logger } from "../utils/logger.js";
 
 interface CreateOrderData {
     userId: string;
@@ -40,6 +42,24 @@ export const createOrder = async (data: CreateOrderData) => {
             unitPrice,
             lineTotal,
         });
+
+        // Decrement stock
+        const updatedProduct = await Product.findByIdAndUpdate(
+            item.productId,
+            { $inc: { stock: -item.quantity } },
+            { new: true }
+        );
+
+        // Use dynamic low stock threshold from product or default to 10
+        const threshold = (updatedProduct as any).lowStockThreshold ?? 10;
+        if (updatedProduct && updatedProduct.stock <= threshold) {
+            const adminEmail = process.env.ADMIN_EMAIL || "admin@groceazy.com";
+            const emailTemplate = getLowStockEmail(updatedProduct.name, updatedProduct.stock, updatedProduct._id.toString());
+            // Send asynchronously, don't block order creation
+            sendEmail(adminEmail, emailTemplate.subject, emailTemplate.text).catch(err =>
+                logger.error(`Failed to send low stock email for ${updatedProduct.name}: ${err}`)
+            );
+        }
     }
 
     const newOrder = new Order({

@@ -29,5 +29,5 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters long"),
-  // token is in params usually, or body. Plan said "POST /api/auth/reset-password/:token" so body has password only
+  token: z.string().min(1, "Token is required"),
 });
