@@ -1,4 +1,3 @@
-// src/validators/auth.validator.ts
 import { z } from "zod";
 
 export const registerSchema = z.object({
@@ -18,4 +17,17 @@ export const googleLoginSchema = z.object({
 
 export const refreshSchema = z.object({
   // refresh will be read from cookie
+});
+
+export const setPasswordSchema = z.object({
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+});
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordSchema = z.object({
+  password: z.string().min(6, "Password must be at least 6 characters long"),
+  // token is in params usually, or body. Plan said "POST /api/auth/reset-password/:token" so body has password only
 });

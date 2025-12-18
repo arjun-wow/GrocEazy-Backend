@@ -25,6 +25,8 @@ export interface IUser extends Document {
   emailVerified?: boolean;
   emailVerificationTokenHash?: string | null;
   emailVerificationExpires?: Date | null;
+  resetPasswordTokenHash?: string | null;
+  resetPasswordExpires?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +55,8 @@ const UserSchema = new Schema<IUser>({
   emailVerified: { type: Boolean, default: false },
   emailVerificationTokenHash: { type: String, default: null },
   emailVerificationExpires: { type: Date, default: null },
+  resetPasswordTokenHash: { type: String, default: null },
+  resetPasswordExpires: { type: Date, default: null },
 }, { timestamps: true });
 
 export const User = model<IUser>("User", UserSchema);
