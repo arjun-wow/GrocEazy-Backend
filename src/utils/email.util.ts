@@ -184,3 +184,38 @@ Regards,
 GrocEazy Admin
 `
 });
+
+// --- Auth & Operations Templates ---
+
+export const getResetPasswordEmail = (userName: string, resetLink: string) => ({
+    subject: "Reset Your Password",
+    text: `
+Hello ${userName},
+
+We received a request to reset your password.
+Click the link below to reset it:
+
+${resetLink}
+
+If you did not request this, please ignore this email.
+
+Regards,
+GrocEazy Team
+`
+});
+
+export const getLowStockEmail = (productName: string, currentStock: number, productId: string) => ({
+    subject: `Low Stock Alert: ${productName}`,
+    text: `
+Alert: Low Stock for Product
+
+Product: ${productName}
+ID: ${productId}
+Current Stock: ${currentStock}
+
+Please restock immediately.
+
+Regards,
+GrocEazy System
+`
+});

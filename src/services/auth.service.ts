@@ -8,6 +8,7 @@ import config from "../config/index.js";
 import { signAccessToken } from "../utils/jwt.util.js";
 import { logger } from "../utils/logger.js";
 import { Types } from "mongoose";
+import { sendEmail, getResetPasswordEmail } from "../utils/email.util.js";
 
 function randomTokenString() {
   return crypto.randomBytes(64).toString("hex");
@@ -52,7 +53,9 @@ export async function createRefreshTokenSession(userId: Types.ObjectId, ipAddres
     userAgent: userAgent || null,
     isRevoked: false,
   });
-  return { rawToken, session };
+  // Return composite token: sessionId:rawToken for O(1) lookup
+  const compositeToken = `${session._id.toString()}:${rawToken}`;
+  return { rawToken: compositeToken, session };
 }
 
 /**
@@ -93,18 +96,44 @@ export async function loginUser({ email, password, ipAddress, userAgent }: { ema
  * If token not found => possible token reuse: revoke all user's sessions.
  */
 export async function rotateRefreshToken(rawToken: string, ipAddress?: string, userAgent?: string) {
-  // find session by verifying hashedToken against stored hashes.
-  const sessions = await RefreshToken.find({ isRevoked: false });
-  // NOTE: to avoid scanning all tokens in prod, store a separate identifier in cookie (like sessionId).
-  // Here, we perform a safe approach: store session id in cookie as well in production.
-  // For now, we expect cookie contains only rawToken, so we search.
   let currentSession = null;
-  for (const s of sessions) {
-    try {
-      const match = await argon2.verify(s.hashedToken, rawToken);
-      if (match) { currentSession = s; break; }
-    } catch (err) {
-      // ignore
+  let tokenToVerify = rawToken;
+
+  // New Format: id:token
+  if (rawToken.includes(':')) {
+    const parts = rawToken.split(':');
+    if (parts.length === 2) {
+      const [sessionId, actualToken] = parts;
+      if (Types.ObjectId.isValid(sessionId)) {
+        const session = await RefreshToken.findById(sessionId);
+        if (session) {
+          // Verify hash
+          try {
+            const match = await argon2.verify(session.hashedToken, actualToken);
+            if (match) {
+              currentSession = session;
+              tokenToVerify = actualToken;
+            }
+          } catch (e) { }
+        }
+      }
+    }
+  }
+
+  // Legacy Fallback (O(N) scan) - Only if not found by ID
+  if (!currentSession) {
+    // NOTE: Scanning all tokens is inefficient. This fallback exists for legacy tokens.
+    const sessions = await RefreshToken.find({ isRevoked: false });
+    for (const s of sessions) {
+      try {
+        // If rawToken has colon but ID lookup failed, it might be a simple token that happens to have colon? 
+        // Unlikely with hex. Assume if we checked ID and failed, it's invalid.
+        // But strict rawToken might be "old format" (hex string).
+        const match = await argon2.verify(s.hashedToken, rawToken);
+        if (match) { currentSession = s; break; }
+      } catch (err) {
+        // ignore
+      }
     }
   }
   if (!currentSession) {
@@ -131,6 +160,28 @@ export async function rotateRefreshToken(rawToken: string, ipAddress?: string, u
 }
 
 export async function revokeRefreshTokenByRaw(rawToken: string) {
+  // New Format: id:token
+  if (rawToken.includes(':')) {
+    const parts = rawToken.split(':');
+    if (parts.length === 2) {
+      const [sessionId, actualToken] = parts;
+      if (Types.ObjectId.isValid(sessionId)) {
+        const session = await RefreshToken.findById(sessionId);
+        if (session) {
+          try {
+            const match = await argon2.verify(session.hashedToken, actualToken);
+            if (match) {
+              session.isRevoked = true;
+              await session.save();
+              return true;
+            }
+          } catch (e) { }
+        }
+      }
+    }
+  }
+
+  // Legacy Fallback
   const sessions = await RefreshToken.find({ isRevoked: false });
   for (const s of sessions) {
     try {
@@ -249,6 +300,13 @@ export async function forgotPassword(email: string) {
 
   // Return composite token: userId:rawToken
   const compositeToken = `${user._id.toString()}:${token}`;
+
+  // Send Email
+  const resetLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password?token=${compositeToken}`;
+  const emailTemplate = getResetPasswordEmail(user.name, resetLink);
+
+  await sendEmail(user.email, emailTemplate.subject, emailTemplate.text);
+
   return { user, compositeToken };
 }
 

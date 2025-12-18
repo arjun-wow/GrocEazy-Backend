@@ -107,7 +107,10 @@ export async function googleLogin(req: Request, res: Response) {
 
 export async function refresh(req: Request, res: Response) {
   const rawToken = req.cookies[config.cookie.refreshTokenName];
-  if (!rawToken) return res.status(401).json({ message: "No refresh token" });
+  if (!rawToken) {
+    logger.warn(`Refresh failed: No cookie named '${config.cookie.refreshTokenName}' found. Cookies: ${JSON.stringify(req.cookies)}`);
+    return res.status(401).json({ message: "No refresh token" });
+  }
   const ip = req.ip ?? "";
   const ua = req.get("User-Agent") || "";
   const { accessToken, refreshToken, user } = await authService.rotateRefreshToken(rawToken, ip, ua);
@@ -197,12 +200,11 @@ export async function forgotPassword(req: Request, res: Response) {
 }
 
 export async function resetPassword(req: Request, res: Response) {
-  const { token } = req.params;
   const parse = resetPasswordSchema.safeParse(req.body);
   if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
 
-  if (!token) return res.status(400).json({ message: "Token required" });
+  const { token, password } = parse.data;
 
-  await authService.resetPassword(token, parse.data.password);
+  await authService.resetPassword(token, password);
   return res.json({ message: "Password reset successfully. You can now login with your new password." });
 }
