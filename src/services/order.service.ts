@@ -135,19 +135,19 @@ export const getAllOrders = async (
   };
 };
 
-
-
 const ALLOWED_STATUSES = [
   "Pending",
   "Processing",
   "Shipped",
   "Delivered",
   "Cancelled",
-];
+] as const;
+
+type OrderStatus = (typeof ALLOWED_STATUSES)[number];
 
 export const updateOrderStatus = async (
   orderId: string,
-  status: string
+  status: OrderStatus
 ) => {
   if (!mongoose.Types.ObjectId.isValid(orderId)) {
     throw new Error("Invalid Order ID");
@@ -163,7 +163,6 @@ export const updateOrderStatus = async (
     throw new Error("Order not found");
   }
 
-  // Prevent undoing delivered orders
   if (order.status === "Delivered") {
     throw new Error("Delivered order status cannot be changed");
   }
