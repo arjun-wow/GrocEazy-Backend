@@ -165,7 +165,6 @@ export const getTicketResolvedEmail = (userName: string, ticketNumber: string) =
 Hello ${userName},
 
 Your issue related to ticket #${ticketNumber} is resolved.
-Please check for files present here (if any).
 
 Regards,
 GrocEazy Support
