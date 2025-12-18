@@ -125,3 +125,70 @@ export const cancelOrder = async (userId: string, orderId: string) => {
 
     return order;
 };
+
+export const getAllOrders = async (
+  page = 1,
+  limit = 20
+) => {
+  const skip = (page - 1) * limit;
+
+  const total = await Order.countDocuments();
+
+  const orders = await Order.find()
+    .populate("userId", "name email")
+    .populate({
+      path: "items.productId",
+      model: "Product",
+      select: "name images price",
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  return {
+    orders,
+    pagination: {
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    },
+  };
+};
+
+const ALLOWED_STATUSES = [
+  "Pending",
+  "Processing",
+  "Shipped",
+  "Delivered",
+  "Cancelled",
+] as const;
+
+type OrderStatus = (typeof ALLOWED_STATUSES)[number];
+
+export const updateOrderStatus = async (
+  orderId: string,
+  status: OrderStatus
+) => {
+  if (!mongoose.Types.ObjectId.isValid(orderId)) {
+    throw new Error("Invalid Order ID");
+  }
+
+  if (!ALLOWED_STATUSES.includes(status)) {
+    throw new Error("Invalid order status");
+  }
+
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    throw new Error("Order not found");
+  }
+
+  if (order.status === "Delivered") {
+    throw new Error("Delivered order status cannot be changed");
+  }
+
+  order.status = status;
+  await order.save();
+
+  return order;
+};
