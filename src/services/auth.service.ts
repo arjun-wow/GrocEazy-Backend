@@ -103,7 +103,8 @@ export async function rotateRefreshToken(rawToken: string, ipAddress?: string, u
   if (rawToken.includes(':')) {
     const parts = rawToken.split(':');
     if (parts.length === 2) {
-      const [sessionId, actualToken] = parts;
+      const sessionId = parts[0] as string;
+      const actualToken = parts[1] as string;
       if (Types.ObjectId.isValid(sessionId)) {
         const session = await RefreshToken.findById(sessionId);
         if (session) {
@@ -164,7 +165,8 @@ export async function revokeRefreshTokenByRaw(rawToken: string) {
   if (rawToken.includes(':')) {
     const parts = rawToken.split(':');
     if (parts.length === 2) {
-      const [sessionId, actualToken] = parts;
+      const sessionId = parts[0] as string;
+      const actualToken = parts[1] as string;
       if (Types.ObjectId.isValid(sessionId)) {
         const session = await RefreshToken.findById(sessionId);
         if (session) {
@@ -314,7 +316,8 @@ export async function resetPassword(compositeToken: string, password: string) {
   const parts = compositeToken.split(":");
   if (parts.length !== 2) throw { status: 400, message: "Invalid token format" };
 
-  const [userId, rawToken] = parts;
+  const userId = parts[0] as string;
+  const rawToken = parts[1] as string;
   const user = await User.findById(userId);
   if (!user) throw { status: 400, message: "Invalid token" };
 
