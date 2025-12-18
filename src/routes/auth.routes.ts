@@ -1,6 +1,7 @@
 // src/routes/auth.routes.ts
 import { Router } from "express";
 import * as authCtrl from "../controllers/auth.controller.js";
+import { authenticate } from "../middlewares/auth.middleware.js";
 import rateLimit from "express-rate-limit";
 
 const router = Router();
@@ -19,5 +20,8 @@ router.post("/google", authLimiter, authCtrl.googleLogin);
 router.post("/refresh", authCtrl.refresh); // no limit (refresh uses cookies)
 router.post("/logout", authCtrl.logout);
 router.get("/verify-email", authCtrl.verifyEmail);
+router.post("/set-password", authenticate, authLimiter, authCtrl.setPassword);
+router.post("/forgot-password", authLimiter, authCtrl.forgotPassword);
+router.post("/reset-password/:token", authLimiter, authCtrl.resetPassword);
 
 export default router;

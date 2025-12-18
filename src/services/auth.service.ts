@@ -1,6 +1,6 @@
 // src/services/auth.service.ts
 import crypto from "crypto";
-import { OAuth2Client } from "google-auth-library";
+import { OAuth2Client, LoginTicket } from "google-auth-library";
 import argon2 from "argon2";
 import { User } from "../models/User.js";
 import { RefreshToken } from "../models/RefreshToken.js";
@@ -28,6 +28,7 @@ export async function registerUser({ name, email, password }: { name: string; em
     emailVerificationExpires: expires,
     role: "customer",
     isActive: true,
+    addresses: [],
   });
   // TODO: send verification email containing verificationToken (not hashed)
   // e.g., /auth/verify-email?token=<verificationToken>&id=<user._id>
@@ -60,10 +61,26 @@ export async function createRefreshTokenSession(userId: Types.ObjectId, ipAddres
 export async function loginUser({ email, password, ipAddress, userAgent }: { email: string; password: string; ipAddress?: string; userAgent?: string; }) {
   const user = await User.findOne({ email });
   if (!user) throw { status: 401, message: "Invalid credentials" };
-  if (user.authProvider !== "local") throw { status: 400, message: "Use social login" };
-  // if (!user.emailVerified) throw { status: 403, message: "Email not verified" };
-  const ok = await argon2.verify(user.password!, password);
-  if (!ok) throw { status: 401, message: "Invalid credentials" };
+  if (!user.isActive) throw { status: 403, message: "Account deactivated. Please contact support." };
+
+  // Hybrid Login: Allow usage of Password if it exists, regardless of authProvider
+  const hasPassword = !!user.password;
+  let isPasswordValid = false;
+
+  if (hasPassword) {
+    isPasswordValid = await argon2.verify(user.password!, password);
+  }
+
+  if (isPasswordValid) {
+    // Valid password, allow login
+  } else {
+    // If password invalid or not set, check provider constraints
+    if (user.authProvider !== "local") throw { status: 400, message: "Use social login or set a password" };
+
+    // If local and password match failed:
+    const ok = await argon2.verify(user.password!, password);
+    if (!ok) throw { status: 401, message: "Invalid credentials" };
+  }
   const accessToken = signAccessToken({ sub: user._id.toString(), role: user.role });
   const { rawToken, session } = await createRefreshTokenSession(user._id, ipAddress, userAgent);
   // Activity log: login
@@ -156,11 +173,11 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export async function loginOrRegisterGoogleUser(token: string, ipAddress?: string, userAgent?: string) {
   // 1. Verify Token
-  let ticket;
+  let ticket: LoginTicket;
   try {
     ticket = await googleClient.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
+      audience: process.env.GOOGLE_CLIENT_ID || "",
     });
   } catch (err) {
     logger.error(`Google token verify failed: ${err}`);
@@ -195,6 +212,7 @@ export async function loginOrRegisterGoogleUser(token: string, ipAddress?: strin
       emailVerified: true, // Google verified
       role: "customer",
       isActive: true,
+      addresses: [],
     });
   }
 
@@ -203,4 +221,54 @@ export async function loginOrRegisterGoogleUser(token: string, ipAddress?: strin
   const { rawToken, session } = await createRefreshTokenSession(user._id, ipAddress, userAgent);
 
   return { accessToken, refreshToken: rawToken, user };
+}
+
+export async function setPassword(userId: string, password: string) {
+  const user = await User.findById(userId);
+  if (!user) throw { status: 404, message: "User not found" };
+
+  const hashedPassword = await argon2.hash(password);
+  user.password = hashedPassword;
+  // If user was Google only, they are now also local-compatible in terms of password, 
+  // but we might want to keep authProvider as is or allow 'local' flow. 
+  // For now, we just set the password.
+  await user.save();
+  return user;
+}
+
+export async function forgotPassword(email: string) {
+  const user = await User.findOne({ email });
+  if (!user) return; // Silent fail (security)
+
+  const token = randomTokenString();
+  const tokenHash = await argon2.hash(token);
+
+  user.resetPasswordTokenHash = tokenHash;
+  user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  await user.save();
+
+  // Return composite token: userId:rawToken
+  const compositeToken = `${user._id.toString()}:${token}`;
+  return { user, compositeToken };
+}
+
+export async function resetPassword(compositeToken: string, password: string) {
+  const parts = compositeToken.split(":");
+  if (parts.length !== 2) throw { status: 400, message: "Invalid token format" };
+
+  const [userId, rawToken] = parts;
+  const user = await User.findById(userId);
+  if (!user) throw { status: 400, message: "Invalid token" };
+
+  if (!user.resetPasswordTokenHash || !user.resetPasswordExpires) throw { status: 400, message: "Invalid token" };
+  if (user.resetPasswordExpires < new Date()) throw { status: 400, message: "Token expired" };
+
+  const valid = await argon2.verify(user.resetPasswordTokenHash!, rawToken);
+  if (!valid) throw { status: 400, message: "Invalid token" };
+
+  user.password = await argon2.hash(password);
+  user.resetPasswordTokenHash = null;
+  user.resetPasswordExpires = null;
+  await user.save();
+  return user;
 }

@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { User } from "../models/User.js";
 import * as userService from "../services/user.service.js";
+import { sendEmail, getAccountStatusEmail } from "../utils/email.util.js";
 
 export async function me(req: Request, res: Response) {
   const user = (req as any).user;
@@ -72,10 +73,25 @@ export const updateUserStatus = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Protection: Admin cannot deactivate other admins or themselves
+    if (user.role === "admin") {
+      return res.status(403).json({ message: "Cannot change status of an Admin account" });
+    }
+    if (user._id.toString() === (req as any).user._id.toString()) {
+      return res.status(403).json({ message: "Cannot change your own status" });
+    }
+
     if (typeof isActive === "boolean") user.isActive = isActive;
     if (typeof isDeleted === "boolean") user.isDeleted = isDeleted;
 
     await user.save();
+
+    // Send Account Status Email if active status changed (implicit check, ideally check dirty)
+    // Here we just send if isActive was part of the body
+    if (typeof isActive === "boolean") {
+      const { subject, text } = getAccountStatusEmail(user.name, isActive);
+      sendEmail(user.email, subject, text).catch(err => console.error("Failed to send account status email", err));
+    }
 
     res.json({ message: "User status updated", user });
   } catch (error: any) {
@@ -133,7 +149,11 @@ export const updateUserAddress = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Address ID is required" });
     }
 
-    const updatedUser = await userService.updateAddress(userId, addressId, addressData);
+    // Sanitization: Only allow specific fields
+    const { street, city, state, zipCode, country, isDefault } = addressData;
+    const sanitizedData = { street, city, state, zipCode, country, isDefault };
+
+    const updatedUser = await userService.updateAddress(userId, addressId, sanitizedData);
     res.json(updatedUser);
   } catch (error: any) {
     res.status(500).json({ message: "Failed to update address", error: error.message });
