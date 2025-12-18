@@ -30,7 +30,7 @@ export function createApp() {
 
   // Mount main API router
   app.use("/api", routes);
-
+  
   app.use(errorHandler);
   return app;
 }
