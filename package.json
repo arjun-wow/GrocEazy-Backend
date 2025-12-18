@@ -9,7 +9,7 @@
     "dev": "tsx watch ./src/server.ts",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "lint": "eslint .",
     "format": "prettier --write .",
     "unused:deps": "depcheck"
