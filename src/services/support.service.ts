@@ -61,7 +61,7 @@ class SupportService {
   ) {
     const skip = (page - 1) * limit;
 
-    let match: any = { isDeleted: false };
+    const match: any = { isDeleted: false };
 
     if (role === "customer") {
       match.userId = userId;
@@ -71,16 +71,40 @@ class SupportService {
       match.assignedManagerId = userId;
     }
 
+    let query = SupportTicket.find(match)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    if (role !== "customer") {
+      query = query
+        .populate({
+          path: "userId",
+          select: "_id name email",
+        })
+        .populate({
+          path: "assignedManagerId",
+          select: "_id name email",
+        });
+    }
+
     const [tickets, total] = await Promise.all([
-      SupportTicket.find(match)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
+      query,
       SupportTicket.countDocuments(match),
     ]);
 
     return {
-      tickets,
+      tickets: tickets.map((ticket: any) => ({
+        _id: ticket._id,
+        subject: ticket.subject,
+        description: ticket.description,
+        status: ticket.status,
+        createdAt: ticket.createdAt,
+        user: role !== "customer" ? ticket.userId : undefined,
+        assignedManager:
+          role !== "customer" ? ticket.assignedManagerId : undefined,
+      })),
       pagination: {
         page,
         limit,
@@ -141,7 +165,9 @@ class SupportService {
 
   static async deleteTicket(ticketId: string) {
     const ticket = await SupportTicket.findById(ticketId);
-    if (!ticket) throw new Error("Ticket not found");
+    if (!ticket) {
+      throw new Error("Ticket not found");
+    }
 
     ticket.isDeleted = true;
     await ticket.save();
