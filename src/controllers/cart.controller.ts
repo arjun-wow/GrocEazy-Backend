@@ -8,17 +8,25 @@ export const getCart = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const cart = await CartService.getCart(req.user._id.toString());
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
+    const result = await CartService.getCart(
+      req.user._id.toString(),
+      page,
+      limit
+    );
 
     return res.json({
       success: true,
       message: "Cart fetched successfully",
-      cart,
+      ...result,
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
+
 
 export const addToCart = async (req: AuthRequest, res: Response) => {
   try {

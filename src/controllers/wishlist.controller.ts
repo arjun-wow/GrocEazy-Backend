@@ -8,12 +8,19 @@ export const getWishlist = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const wishlist = await WishlistService.getWishlist(req.user._id.toString());
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
+    const result = await WishlistService.getWishlist(
+      req.user._id.toString(),
+      page,
+      limit
+    );
 
     return res.json({
       success: true,
       message: "Wishlist fetched successfully",
-      wishlist,
+      ...result,
     });
   } catch (err: any) {
     return res.status(500).json({ success: false, message: err.message });
@@ -46,10 +53,7 @@ export const addToWishlist = async (req: AuthRequest, res: Response) => {
 export const removeWishlistItem = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?._id) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     const { wishlistId } = req.params;
@@ -72,16 +76,10 @@ export const removeWishlistItem = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/* ================================
-    MOVE WISHLIST ITEM → CART
-================================ */
 export const moveToCart = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user?._id) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized",
-      });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     const { wishlistId } = req.params;
@@ -104,9 +102,6 @@ export const moveToCart = async (req: AuthRequest, res: Response) => {
       result,
     });
   } catch (err: any) {
-    return res.status(400).json({
-      success: false,
-      message: err.message,
-    });
+    return res.status(400).json({ success: false, message: err.message });
   }
 };
