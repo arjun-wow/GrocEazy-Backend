@@ -6,50 +6,78 @@ import Product from "../models/Product.js";
 class CartService {
 
   /** GET CART USING AGGREGATION */
-  async getCart(userId: string) {
-    return CartItem.aggregate([
-      { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+  async getCart(userId: string, page = 1, limit = 10) {
+  const skip = (page - 1) * limit;
 
-      {
-        $lookup: {
-          from: "products",
-          localField: "productId",
-          foreignField: "_id",
-          as: "product",
-        },
-      },
-      { $unwind: "$product" },
-      // Filter out deleted or inactive products (Option B: Soft Delete)
-      {
-        $match: {
-          "product.isDeleted": false
-        }
-      },
+  const result = await CartItem.aggregate([
+    { $match: { userId: new mongoose.Types.ObjectId(userId) } },
 
-      {
-        $addFields: {
-          lineTotal: { $multiply: ["$quantity", "$product.price"] },
-        },
+    {
+      $lookup: {
+        from: "products",
+        localField: "productId",
+        foreignField: "_id",
+        as: "product",
       },
+    },
+    { $unwind: "$product" },
 
-      {
-        $project: {
+    {
+      $match: {
+        "product.isDeleted": false,
+      },
+    },
+
+    {
+      $addFields: {
+        lineTotal: { $multiply: ["$quantity", "$product.price"] },
+      },
+    },
+
+    {
+      $project: {
+        _id: 1,
+        productId: 1,
+        quantity: 1,
+        lineTotal: 1,
+        product: {
           _id: 1,
-          productId: 1,
-          quantity: 1,
-          lineTotal: 1,
-          product: {
-            _id: 1,
-            name: 1,
-            images: 1,
-            price: 1,
-            stock: 1,
-            isActive: 1,
-          },
+          name: 1,
+          images: 1,
+          price: 1,
+          stock: 1,
+          isActive: 1,
         },
       },
-    ]);
-  }
+    },
+
+    {
+      $facet: {
+        items: [
+          { $skip: skip },
+          { $limit: limit },
+        ],
+        totalCount: [
+          { $count: "count" },
+        ],
+      },
+    },
+  ]);
+
+  const items = result[0].items;
+  const total = result[0].totalCount[0]?.count || 0;
+
+  return {
+    items,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+}
+
 
   /** ADD ITEM OR INCREMENT */
   async addToCart(

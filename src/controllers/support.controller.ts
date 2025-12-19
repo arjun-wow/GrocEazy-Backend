@@ -2,10 +2,6 @@ import type { Response } from "express";
 import type { AuthRequest } from "../types/AuthRequest.js";
 import SupportService from "../services/support.service.js";
 
-/**
- * CREATE TICKET (Customer)
- * Auto assigns manager with least tickets
- */
 export const createTicket = async (req: AuthRequest, res: Response) => {
   try {
     const { subject, description } = req.body;
@@ -29,19 +25,24 @@ export const createTicket = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/**
- * GET TICKETS (Admin / Manager / Customer)
- */
 export const getAllTickets = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!._id.toString();
     const role = req.user!.role;
 
-    const tickets = await SupportService.getAllTickets(userId, role);
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+
+    const result = await SupportService.getAllTickets(
+      userId,
+      role,
+      page,
+      limit
+    );
 
     return res.json({
       success: true,
-      tickets,
+      ...result,
     });
   } catch (err: any) {
     return res.status(500).json({
@@ -51,10 +52,6 @@ export const getAllTickets = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/**
- * UPDATE STATUS (Manager / Admin)
- * Once resolved → cannot change again
- */
 export const updateTicketStatus = async (
   req: AuthRequest,
   res: Response
@@ -77,9 +74,6 @@ export const updateTicketStatus = async (
   }
 };
 
-/**
- * DELETE TICKET (Soft delete)
- */
 export const deleteTicket = async (req: AuthRequest, res: Response) => {
   try {
     const ticketId = req.params.ticketId as string;

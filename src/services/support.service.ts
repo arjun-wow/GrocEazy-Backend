@@ -9,24 +9,21 @@ import {
 } from "../utils/email.util.js";
 
 class SupportService {
-  // CREATE TICKET
   static async createTicket(
     userId: string,
     subject: string,
     description: string
   ) {
-    // 1. Find least busy manager
     const manager = await User.findOne({
       role: "manager",
       isActive: true,
       isDeleted: false,
-    }).sort({ assignedTicketsCount: 1 }); // optional metric
+    }).sort({ assignedTicketsCount: 1 });
 
     if (!manager) {
       throw new Error("No manager available");
     }
 
-    // 2. Create ticket
     const ticket = await SupportTicket.create({
       userId,
       subject,
@@ -34,17 +31,14 @@ class SupportService {
       assignedManagerId: manager._id,
     });
 
-    // 3. Fetch customer
     const customer = await User.findById(userId);
 
-    // 4. Send emails (NON-BLOCKING)
     if (customer?.email) {
       const mail = getTicketCreatedEmail(
         customer.name,
         ticket._id.toString(),
         subject
       );
-
       sendEmail(customer.email, mail.subject, mail.text);
     }
 
@@ -53,35 +47,49 @@ class SupportService {
         manager.name,
         ticket._id.toString()
       );
-
       sendEmail(manager.email, mail.subject, mail.text);
     }
 
     return ticket;
   }
 
-  // GET TICKETS
-  static async getAllTickets(userId: string, role: string) {
+  static async getAllTickets(
+    userId: string,
+    role: string,
+    page = 1,
+    limit = 10
+  ) {
+    const skip = (page - 1) * limit;
+
+    let match: any = { isDeleted: false };
+
     if (role === "customer") {
-      return SupportTicket.find({
-        userId,
-        isDeleted: false,
-      }).sort({ createdAt: -1 });
+      match.userId = userId;
     }
 
     if (role === "manager") {
-      return SupportTicket.find({
-        assignedManagerId: userId,
-        isDeleted: false,
-      }).sort({ createdAt: -1 });
+      match.assignedManagerId = userId;
     }
 
-    return SupportTicket.find({ isDeleted: false }).sort({
-      createdAt: -1,
-    });
+    const [tickets, total] = await Promise.all([
+      SupportTicket.find(match)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      SupportTicket.countDocuments(match),
+    ]);
+
+    return {
+      tickets,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  // UPDATE STATUS
   static async updateStatus(ticketId: string, status: string) {
     const ticket = await SupportTicket.findById(ticketId);
 
@@ -96,31 +104,26 @@ class SupportService {
     ticket.status = status as any;
     await ticket.save();
 
-    // Fetch users
     const customer = await User.findById(ticket.userId);
     const manager = ticket.assignedManagerId
       ? await User.findById(ticket.assignedManagerId)
       : null;
 
-    // Notify customer on any update
     if (customer?.email) {
       const mail = getTicketStatusUpdateEmail(
         customer.name,
         ticket._id.toString(),
         status
       );
-
       sendEmail(customer.email, mail.subject, mail.text);
     }
 
-    // Notify both on resolved
     if (status === "resolved") {
       if (customer?.email) {
         const mail = getTicketResolvedEmail(
           customer.name,
           ticket._id.toString()
         );
-
         sendEmail(customer.email, mail.subject, mail.text);
       }
 
@@ -129,7 +132,6 @@ class SupportService {
           manager.name,
           ticket._id.toString()
         );
-
         sendEmail(manager.email, mail.subject, mail.text);
       }
     }
@@ -137,7 +139,6 @@ class SupportService {
     return ticket;
   }
 
-  // DELETE (SOFT)
   static async deleteTicket(ticketId: string) {
     const ticket = await SupportTicket.findById(ticketId);
     if (!ticket) throw new Error("Ticket not found");
