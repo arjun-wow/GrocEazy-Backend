@@ -106,6 +106,7 @@ export async function rotateRefreshToken(rawToken: string, ipAddress?: string, u
       const sessionId = parts[0] as string;
       const actualToken = parts[1] as string;
       if (Types.ObjectId.isValid(sessionId)) {
+        logger.info(`[AuthDebug] Checking session ID: ${sessionId}`);
         const session = await RefreshToken.findById(sessionId);
         if (session) {
           // Verify hash
@@ -114,22 +115,30 @@ export async function rotateRefreshToken(rawToken: string, ipAddress?: string, u
             if (match) {
               currentSession = session;
               tokenToVerify = actualToken;
+            } else {
+              logger.warn(`[AuthDebug] Hash mismatch for session ${sessionId}`);
             }
-          } catch (e) { }
+          } catch (e) {
+            logger.error(`[AuthDebug] Argon2 error for session ${sessionId}:`, e);
+          }
+        } else {
+          logger.warn(`[AuthDebug] Session not found for ID: ${sessionId}`);
         }
+      } else {
+        logger.warn(`[AuthDebug] Invalid ObjectID: ${sessionId}`);
       }
     }
+  } else {
+    logger.info(`[AuthDebug] Raw token does not contain colon.`);
   }
 
   // Legacy Fallback (O(N) scan) - Only if not found by ID
   if (!currentSession) {
+    logger.info(`[AuthDebug] Falling back to scan all tokens.`);
     // NOTE: Scanning all tokens is inefficient. This fallback exists for legacy tokens.
     const sessions = await RefreshToken.find({ isRevoked: false });
     for (const s of sessions) {
       try {
-        // If rawToken has colon but ID lookup failed, it might be a simple token that happens to have colon? 
-        // Unlikely with hex. Assume if we checked ID and failed, it's invalid.
-        // But strict rawToken might be "old format" (hex string).
         const match = await argon2.verify(s.hashedToken, rawToken);
         if (match) { currentSession = s; break; }
       } catch (err) {
@@ -138,10 +147,11 @@ export async function rotateRefreshToken(rawToken: string, ipAddress?: string, u
     }
   }
   if (!currentSession) {
+    logger.warn(`[AuthDebug] Failed to find session. RawToken (snippet): ${rawToken.substring(0, 10)}...`);
+
     // Reuse or stolen token: revoke all refresh tokens for all users
     // We need to detect which user: cannot, so safest is deny and require re-login for all sessions for safety
     logger.warn("Refresh token reuse or unknown token - potential attack. Revoking all sessions for safety.");
-    // Optionally revoke all tokens for user if you can deduce; here we revoke everything for the token owner unknown -> more conservative approach is to fail and ask login
     throw { status: 401, message: "Invalid refresh token" };
   }
   if (currentSession.isRevoked || currentSession.expiresAt < new Date()) {
