@@ -1,9 +1,12 @@
 import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
+import CartItem from "../models/Cart.js";
 import { User } from "../models/User.js";
 import { sendEmail, getLowStockEmail } from "../utils/email.util.js";
 import { logger } from "../utils/logger.js";
+
+/* ================= TYPES ================= */
 
 interface CreateOrderData {
   userId: string;
@@ -11,30 +14,32 @@ interface CreateOrderData {
   items: { productId: string; quantity: number }[];
 }
 
-export const createOrder = async (data: CreateOrderData) => {
-  const { userId, address, items } = data;
+/* ================= CREATE ORDER ================= */
 
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    throw new Error("No items in order");
+export const createOrder = async (data: CreateOrderData) => {
+  const { userId, address } = data;
+
+  // 1️⃣ Fetch cart (stock already reserved)
+  const cartItems = await CartItem.find({ userId });
+
+  if (!cartItems.length) {
+    throw new Error("Cart is empty");
   }
 
   let totalAmount = 0;
-  const orderItems = [];
+  const orderItems: any[] = [];
 
-  // Process items: validate product, price, stock
-  for (const item of items) {
+  // 2️⃣ Build order items (NO STOCK CHECK)
+  for (const item of cartItems) {
     const product = await Product.findById(item.productId);
+
     if (!product) {
-      throw new Error(`Product not found: ${item.productId}`);
+      throw new Error("Product not found");
     }
 
-    if (product.stock < item.quantity) {
-      throw new Error(`Insufficient stock for product: ${product.name}`);
-    }
-
-    // Use price from database for security
     const unitPrice = product.price;
     const lineTotal = unitPrice * item.quantity;
+
     totalAmount += lineTotal;
 
     orderItems.push({
@@ -44,33 +49,38 @@ export const createOrder = async (data: CreateOrderData) => {
       lineTotal,
     });
 
-    // Decrement stock
-    const updatedProduct = await Product.findByIdAndUpdate(
-      item.productId,
-      { $inc: { stock: -item.quantity } },
-      { new: true }
-    );
+    // ⚠️ LOW STOCK EMAIL (safe here – stock already reduced)
+    const threshold = (product as any).lowStockThreshold ?? 10;
+    if (product.stock <= threshold) {
+      const managers = await User.find({
+        role: "manager",
+        isActive: true,
+      }).select("email name");
 
-    // Use dynamic low stock threshold from product or default to 10
-    const threshold = (updatedProduct as any).lowStockThreshold ?? 10;
-    if (updatedProduct && updatedProduct.stock <= threshold) {
-      // Fetch all active managers
-      const managers = await User.find({ role: "manager", isActive: true }).select("email name");
+      const recipients = managers.map((m) => ({
+        email: m.email,
+        name: m.name,
+      }));
 
-      const recipients: { email: string; name?: string }[] = managers.map(m => ({ email: m.email, name: m.name }));
-
-      // Also include Admin
       const adminEmail = process.env.ADMIN_EMAIL || "admin@groceazy.com";
       recipients.push({ email: adminEmail, name: "Admin" });
 
-      const emailTemplate = getLowStockEmail(updatedProduct.name, updatedProduct.stock, updatedProduct._id.toString());
-      // Send asynchronously, don't block order creation
-      sendEmail(recipients, emailTemplate.subject, emailTemplate.text).catch(err =>
-        logger.error(`Failed to send low stock email for ${updatedProduct.name}: ${err}`)
+      const emailTemplate = getLowStockEmail(
+        product.name,
+        product.stock,
+        product._id.toString()
+      );
+
+      sendEmail(recipients, emailTemplate.subject, emailTemplate.text).catch(
+        (err) =>
+          logger.error(
+            `Failed to send low stock email for ${product.name}: ${err}`
+          )
       );
     }
   }
 
+  // 3️⃣ Create order
   const newOrder = new Order({
     userId,
     address,
@@ -82,14 +92,19 @@ export const createOrder = async (data: CreateOrderData) => {
 
   const savedOrder = await newOrder.save();
 
-  // Ideally, we should decrease stock here (implementation pending transaction/concurrency handling)
+  // 4️⃣ Clear cart (DO NOT restore stock)
+  await CartItem.deleteMany({ userId });
 
   return savedOrder;
 };
 
+/* ================= GET MY ORDERS ================= */
+
 export const getMyOrders = async (userId: string) => {
   return await Order.find({ userId }).sort({ createdAt: -1 });
 };
+
+/* ================= GET ORDER BY ID ================= */
 
 export const getOrderById = async (userId: string, orderId: string) => {
   if (!mongoose.Types.ObjectId.isValid(orderId)) {
@@ -101,15 +116,14 @@ export const getOrderById = async (userId: string, orderId: string) => {
     userId,
   });
 
-  if (!order) {
-    return null; // Let controller handle 404
-  }
+  if (!order) return null;
 
-  // Populate product details
   await order.populate("items.productId", "name images");
 
   return order;
 };
+
+/* ================= CANCEL ORDER ================= */
 
 export const cancelOrder = async (userId: string, orderId: string) => {
   if (!mongoose.Types.ObjectId.isValid(orderId)) {
@@ -132,15 +146,20 @@ export const cancelOrder = async (userId: string, orderId: string) => {
   order.status = "Cancelled";
   await order.save();
 
+  // ✅ Restore stock on cancel
+  for (const item of order.items) {
+    await Product.findByIdAndUpdate(item.productId, {
+      $inc: { stock: item.quantity },
+    });
+  }
+
   return order;
 };
 
-export const getAllOrders = async (
-  page = 1,
-  limit = 20
-) => {
-  const skip = (page - 1) * limit;
+/* ================= GET ALL ORDERS ================= */
 
+export const getAllOrders = async (page = 1, limit = 20) => {
+  const skip = (page - 1) * limit;
   const total = await Order.countDocuments();
 
   const orders = await Order.find()
@@ -163,6 +182,8 @@ export const getAllOrders = async (
     },
   };
 };
+
+/* ================= UPDATE ORDER STATUS ================= */
 
 const ALLOWED_STATUSES = [
   "Pending",
