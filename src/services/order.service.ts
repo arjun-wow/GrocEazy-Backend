@@ -132,8 +132,15 @@ export const cancelOrder = async (userId: string, orderId: string) => {
   order.status = "Cancelled";
   await order.save();
 
+  // Restore stock
+  for (const item of order.items) {
+    await Product.findByIdAndUpdate(item.productId, {
+      $inc: { stock: item.quantity },
+    });
+  }
+
   return order;
-};
+}
 
 export const getAllOrders = async (
   page = 1,

@@ -80,26 +80,60 @@ class CartService {
 
 
   /** ADD ITEM OR INCREMENT */
-  async addToCart(
-    userId: string,
-    productId: string,
-    quantity: number
-  ): Promise<ICartItem | null> {
-    const product = await Product.findById(productId);
+  async addToCart(userId: string, productId: string, quantity: number) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const product = await Product.findById(productId).session(session);
 
     if (!product || product.isDeleted || !product.isActive) {
       throw new Error("Product not available");
     }
 
-    return CartItem.findOneAndUpdate(
+    if (product.stock < quantity) {
+      throw new Error(`Only ${product.stock} items available`);
+    }
+
+    const cartItem = await CartItem.findOneAndUpdate(
       { userId, productId },
       { $inc: { quantity } },
-      { new: true, upsert: true }
+      { new: true, upsert: true, session }
     );
+
+    await Product.findByIdAndUpdate(
+      productId,
+      { $inc: { stock: -quantity } },
+      { session }
+    );
+
+    await session.commitTransaction();
+    return cartItem;
+  } catch (err) {
+    await session.abortTransaction();
+    throw err;
+  } finally {
+    session.endSession();
   }
+}
+
 
   /** UPDATE QUANTITY USING cartId */
   async updateCartItemById(cartId: string, quantity: number) {
+    const cartItem = await CartItem.findById(cartId);
+    if (!cartItem) {
+      throw new Error("Cart item not found");
+    }
+
+    const product = await Product.findById(cartItem.productId);
+    if (!product || product.isDeleted || !product.isActive) {
+      throw new Error("Product no longer available");
+    }
+
+    if (quantity > product.stock) {
+      throw new Error(`Only ${product.stock} items available in stock`);
+    }
+
     return CartItem.findByIdAndUpdate(
       cartId,
       { quantity },
