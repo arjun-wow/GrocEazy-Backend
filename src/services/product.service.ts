@@ -30,7 +30,7 @@ class ProductService {
         return await product.save();
     }
 
-    async getAllProducts(filter: ProductFilter, page: number = 1, limit: number = 20, hasFullAccess: boolean = false) {
+    async getAllProducts(filter: ProductFilter, page: number = 1, limit: number = 20) {
         const query: any = { isDeleted: false, isActive: true };
 
         if (filter.categoryId) {
@@ -48,25 +48,16 @@ class ProductService {
         }
 
         if (filter.search) {
-            query.$text = { $search: filter.search };
+            query.$or = [
+                { name: { $regex: filter.search, $options: "i" } },
+                { description: { $regex: filter.search, $options: "i" } }
+            ];
         }
 
         const skip = (page - 1) * limit;
 
-        // Fields to exclude for non-admin users
-        const projection = hasFullAccess ? {} : {
-            stock: 0,
-            lowStockThreshold: 0,
-            createdBy: 0,
-            isActive: 0,
-            isDeleted: 0,
-            __v: 0,
-            createdAt: 0,
-            updatedAt: 0
-        };
-
         const [products, total] = await Promise.all([
-            Product.find(query, projection).skip(skip).limit(limit).populate("categoryId", "name"),
+            Product.find(query).skip(skip).limit(limit).populate("categoryId", "name"),
             Product.countDocuments(query)
         ]);
 
@@ -78,18 +69,8 @@ class ProductService {
         };
     }
 
-    async getProductById(id: string, hasFullAccess: boolean = false): Promise<IProduct | null> {
-        const projection = hasFullAccess ? {} : {
-            stock: 0,
-            lowStockThreshold: 0,
-            createdBy: 0,
-            isActive: 0,
-            isDeleted: 0,
-            __v: 0,
-            createdAt: 0,
-            updatedAt: 0
-        };
-        return await Product.findOne({ _id: id, isDeleted: false }, projection).populate("categoryId", "name");
+    async getProductById(id: string): Promise<IProduct | null> {
+        return await Product.findOne({ _id: id, isDeleted: false }).populate("categoryId", "name");
     }
 
     async updateProduct(id: string, data: Partial<IProduct>, files?: Express.Multer.File[]): Promise<IProduct | null> {
@@ -129,49 +110,27 @@ class ProductService {
         );
     }
 
-    async getSimilarProducts(id: string, limit: number = 6, hasFullAccess: boolean = false): Promise<IProduct[]> {
+    async getSimilarProducts(id: string, limit: number = 6): Promise<IProduct[]> {
         const product = await Product.findById(id);
         if (!product) return [];
-
-        const projection = hasFullAccess ? {} : {
-            stock: 0,
-            lowStockThreshold: 0,
-            createdBy: 0,
-            isActive: 0,
-            isDeleted: 0,
-            __v: 0,
-            createdAt: 0,
-            updatedAt: 0
-        };
 
         return await Product.find({
             categoryId: product.categoryId,
             _id: { $ne: id }, // Exclude current product
             isDeleted: false,
             isActive: true
-        }, projection)
+        })
             .limit(limit)
             .populate("categoryId", "name");
     }
 
-    async getTopProducts(limit: number = 10, hasFullAccess: boolean = false): Promise<IProduct[]> {
-        const projection = hasFullAccess ? {} : {
-            stock: 0,
-            lowStockThreshold: 0,
-            createdBy: 0,
-            isActive: 0,
-            isDeleted: 0,
-            __v: 0,
-            createdAt: 0,
-            updatedAt: 0
-        };
-
+    async getTopProducts(limit: number = 10): Promise<IProduct[]> {
         // Logic: "Low stock high sales" -> Products with lowest stock are assumed to be selling best
         return await Product.find({
             isDeleted: false,
             isActive: true,
             stock: { $gt: 0 } // Ensure available
-        }, projection)
+        })
             .sort({ stock: 1 }) // Ascending stock (lower stock first)
             .limit(limit)
             .populate("categoryId", "name");

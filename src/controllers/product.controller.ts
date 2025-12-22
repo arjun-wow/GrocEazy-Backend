@@ -37,8 +37,7 @@ export const getAllProducts: RequestHandler = async (req, res, next) => {
             dietary: req.query.dietary as string,
         };
 
-        const hasFullAccess = ["manager", "admin"].includes((req as any).user?.role);
-        const result = await ProductService.getAllProducts(filter, page, limit, hasFullAccess);
+        const result = await ProductService.getAllProducts(filter, page, limit);
         res.status(200).json(result);
     } catch (error) {
         logger.error("Error fetching products", error);
@@ -53,8 +52,7 @@ export const getProductById: RequestHandler = async (req, res, next) => {
             res.status(400).json({ message: "Product ID is required" });
             return;
         }
-        const hasFullAccess = ["manager", "admin"].includes((req as any).user?.role);
-        const product = await ProductService.getProductById(id, hasFullAccess);
+        const product = await ProductService.getProductById(id);
         if (!product) {
             res.status(404).json({ message: "Product not found" });
             return;
@@ -111,8 +109,7 @@ export const getSimilarProducts: RequestHandler = async (req, res, next) => {
         const id = req.params.id as string;
         const limit = parseInt(req.query.limit as string) || 6;
 
-        const hasFullAccess = ["manager", "admin"].includes((req as any).user?.role);
-        const products = await ProductService.getSimilarProducts(id, limit, hasFullAccess);
+        const products = await ProductService.getSimilarProducts(id, limit);
         res.status(200).json(products);
     } catch (error) {
         logger.error("Error fetching similar products", error);
@@ -124,8 +121,7 @@ export const getTopProducts: RequestHandler = async (req, res, next) => {
     try {
         const limit = parseInt(req.query.limit as string) || 10;
 
-        const hasFullAccess = ["manager", "admin"].includes((req as any).user?.role);
-        const products = await ProductService.getTopProducts(limit, hasFullAccess);
+        const products = await ProductService.getTopProducts(limit);
         res.status(200).json(products);
     } catch (error) {
         logger.error("Error fetching top products", error);
