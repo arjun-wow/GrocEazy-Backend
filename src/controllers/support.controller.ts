@@ -91,3 +91,26 @@ export const deleteTicket = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
+export const assignManager = async (req: AuthRequest, res: Response) => {
+  try {
+    const { ticketId } = req.params;
+    const { managerId } = req.body;
+
+    const ticket = await SupportService.assignToManager(
+      ticketId as string,
+      managerId
+    );
+
+    return res.json({
+      success: true,
+      message: "Ticket assigned successfully",
+      ticket,
+    });
+  } catch (err: any) {
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};

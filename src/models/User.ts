@@ -29,6 +29,7 @@ export interface IUser extends Document {
   resetPasswordExpires?: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  assignedTicketsCount: number;
 }
 
 const AddressSchema = new Schema({
@@ -57,6 +58,7 @@ const UserSchema = new Schema<IUser>({
   emailVerificationExpires: { type: Date, default: null },
   resetPasswordTokenHash: { type: String, default: null },
   resetPasswordExpires: { type: Date, default: null },
+  assignedTicketsCount: { type: Number, default: 0 },
 }, { timestamps: true });
 
 export const User = model<IUser>("User", UserSchema);
