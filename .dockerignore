@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+.git
+.gitignore
+.vscode
+.husky
+.commitlintrc.json
+.lintstagedrc.json
+.prettierrc
+eslint.config.js
+frontend_instructions.md
+logs
+package-lock.json
+*.md
+Dockerfile
+.dockerignore
