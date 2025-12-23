@@ -23,19 +23,8 @@ export const createProduct: RequestHandler = async (req, res, next) => {
 };
 
 export const getAllProducts: RequestHandler = async (req, res, next) => {
-    // Query params validation optional for now, or add specific schema if needed
     try {
-
-        const page = parseInt(req.query.page as string) || 1;
-        const limit = parseInt(req.query.limit as string) || 20;
-
-        const filter = {
-            categoryId: (req.query.categoryId || req.query.category) as string,
-            minPrice: req.query.minPrice ? parseFloat(req.query.minPrice as string) : undefined,
-            maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
-            search: req.query.search as string,
-            dietary: req.query.dietary as string,
-        };
+        const { page, limit, ...filter } = req.query as any;
 
         const result = await ProductService.getAllProducts(filter, page, limit);
         res.status(200).json(result);

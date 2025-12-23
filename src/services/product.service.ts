@@ -2,17 +2,10 @@ import Product, { type IProduct } from "../models/Product.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 import CartItem from "../models/Cart.js";
 import WishlistItem from "../models/Wishlist.js";
-
-interface ProductFilter {
-    categoryId?: string;
-    minPrice?: number | undefined;
-    maxPrice?: number | undefined;
-    search?: string;
-    dietary?: string;
-}
+import type { CreateProductInput, UpdateProductInput, GetProductsQuery } from "../validators/product.validators.js";
 
 class ProductService {
-    async createProduct(data: Partial<IProduct>, files?: Express.Multer.File[]): Promise<IProduct> {
+    async createProduct(data: CreateProductInput, files?: Express.Multer.File[]): Promise<IProduct> {
         const imageUrls: string[] = [];
 
         if (files && files.length > 0) {
@@ -30,11 +23,12 @@ class ProductService {
         return await product.save();
     }
 
-    async getAllProducts(filter: ProductFilter, page: number = 1, limit: number = 20) {
+    async getAllProducts(filter: GetProductsQuery, page: number = 1, limit: number = 20) {
         const query: any = { isDeleted: false, isActive: true };
 
-        if (filter.categoryId) {
-            query.categoryId = filter.categoryId;
+        const categoryId = filter.categoryId || filter.category;
+        if (categoryId) {
+            query.categoryId = categoryId;
         }
 
         if (filter.dietary) {
@@ -48,10 +42,7 @@ class ProductService {
         }
 
         if (filter.search) {
-            query.$or = [
-                { name: { $regex: filter.search, $options: "i" } },
-                { description: { $regex: filter.search, $options: "i" } }
-            ];
+            query.name = filter.search;
         }
 
         const skip = (page - 1) * limit;
@@ -73,7 +64,7 @@ class ProductService {
         return await Product.findOne({ _id: id, isDeleted: false }).populate("categoryId", "name");
     }
 
-    async updateProduct(id: string, data: Partial<IProduct>, files?: Express.Multer.File[]): Promise<IProduct | null> {
+    async updateProduct(id: string, data: UpdateProductInput, files?: Express.Multer.File[]): Promise<IProduct | null> {
         const updateData: any = { ...data };
 
         if (files && files.length > 0) {
@@ -101,6 +92,8 @@ class ProductService {
             { new: true }
         );
     }
+    // ... rest of the file unchanged
+
 
     async deleteProduct(id: string): Promise<IProduct | null> {
         return await Product.findOneAndUpdate(
