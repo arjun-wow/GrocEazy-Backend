@@ -32,8 +32,24 @@ export const productIdSchema = z.object({
   id: objectId,
 });
 
+export const getProductsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).default(20),
+  categoryId: objectId.optional(),
+  category: objectId.optional(),
+  minPrice: z.coerce.number().min(0).optional(),
+  maxPrice: z.coerce.number().min(0).optional(),
+  search: z.string().trim().optional(),
+  dietary: z.string().trim().optional(),
+});
+
+export type CreateProductInput = z.infer<typeof createProductSchema>;
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type GetProductsQuery = z.infer<typeof getProductsQuerySchema>;
+
 export const productValidators = {
   createProductSchema,
   updateProductSchema,
   productIdSchema,
+  getProductsQuerySchema,
 };
