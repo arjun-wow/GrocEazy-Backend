@@ -1,0 +1,44 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-4000}:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - MONGO_DB_URL=mongodb://mongodb:27017/groceazy
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
+      - ACCESS_TOKEN_EXPIRES=${ACCESS_TOKEN_EXPIRES:-15m}
+      - REFRESH_TOKEN_EXPIRES_DAYS=${REFRESH_TOKEN_EXPIRES_DAYS:-30}
+      - REFRESH_COOKIE_NAME=${REFRESH_COOKIE_NAME:-rt}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
+      - COOKIE_SAMESITE=${COOKIE_SAMESITE:-None}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+    depends_on:
+      - mongodb
+    networks:
+      - groceazy-network
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - groceazy-network
+
+networks:
+  groceazy-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

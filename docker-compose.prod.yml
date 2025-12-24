@@ -1,0 +1,40 @@
+services:
+  app:
+    build: 
+      context: .
+      target: production
+    restart: always
+    ports:
+      - "80:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - MONGO_DB_URL=${MONGO_DB_URL}
+      - ACCESS_TOKEN_SECRET=${ACCESS_TOKEN_SECRET}
+      - ACCESS_TOKEN_EXPIRES=${ACCESS_TOKEN_EXPIRES:-15m}
+      - REFRESH_TOKEN_EXPIRES_DAYS=${REFRESH_TOKEN_EXPIRES_DAYS:-30}
+      - REFRESH_COOKIE_NAME=${REFRESH_COOKIE_NAME:-rt}
+      - COOKIE_SECURE=true
+      - COOKIE_SAMESITE=None
+      - FRONTEND_URL=${FRONTEND_URL}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
