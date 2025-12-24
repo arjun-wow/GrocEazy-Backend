@@ -17,10 +17,7 @@ export function createApp() {
 
   app.use(express.json());
   app.use(cookieParser());
-  app.use(cors({
-    origin: process.env.FRONTEND_URL || true,
-    credentials: true,
-  }));
+  app.use(cors());
 
   // Root route so visiting http://localhost:4000/ shows something instead of 404
   app.get("/", (req, res) => res.send("GrocEazy Backend — API lives at /api"));
@@ -30,7 +27,7 @@ export function createApp() {
 
   // Mount main API router
   app.use("/api", routes);
-  
+
   app.use(errorHandler);
   return app;
 }
