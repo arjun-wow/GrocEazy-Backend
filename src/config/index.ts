@@ -13,7 +13,7 @@ export default {
   cookie: {
     refreshTokenName: process.env.REFRESH_COOKIE_NAME || "rt",
     secure: process.env.COOKIE_SECURE ? process.env.COOKIE_SECURE === "true" : process.env.NODE_ENV === "production",
-    //sameSite: (process.env.COOKIE_SAMESITE as "Strict" | "Lax" | "None") || (process.env.NODE_ENV === "production" ? "None" : "Lax"),
+    sameSite: (process.env.COOKIE_SAMESITE as "Strict" | "Lax" | "None") || (process.env.NODE_ENV === "production" ? "None" : "Lax"),
     httpOnly: true,
   },
   rateLimit: {
