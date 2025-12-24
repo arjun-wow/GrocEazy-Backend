@@ -2,6 +2,35 @@ import mongoose from 'mongoose';
 import CartItem from '../models/Cart.js';
 import Product from '../models/Product.js';
 
+/* ================= TRANSACTION RETRY HELPER ================= */
+
+async function withTransactionRetry<T>(
+  fn: (session: mongoose.ClientSession) => Promise<T>,
+  retries = 3
+): Promise<T> {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+    const result = await fn(session);
+    await session.commitTransaction();
+    return result;
+  } catch (err: any) {
+    await session.abortTransaction();
+
+    if (
+      retries > 0 &&
+      err?.errorLabels?.includes('TransientTransactionError')
+    ) {
+      return withTransactionRetry(fn, retries - 1);
+    }
+
+    throw err;
+  } finally {
+    session.endSession();
+  }
+}
+
 class CartService {
   /* ================= GET CART ================= */
 
@@ -21,11 +50,7 @@ class CartService {
       },
       { $unwind: '$product' },
 
-      {
-        $match: {
-          'product.isDeleted': false,
-        },
-      },
+      { $match: { 'product.isDeleted': false } },
 
       {
         $addFields: {
@@ -58,8 +83,8 @@ class CartService {
       },
     ]);
 
-    const items = result[0].items;
-    const total = result[0].totalCount[0]?.count || 0;
+    const items = result[0]?.items ?? [];
+    const total = result[0]?.totalCount[0]?.count ?? 0;
 
     return {
       items,
@@ -75,18 +100,15 @@ class CartService {
   /* ================= ADD TO CART ================= */
 
   async addToCart(userId: string, productId: string, quantity: number) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    return withTransactionRetry(async (session) => {
+      const product = await Product.findOneAndUpdate(
+        { _id: productId, isDeleted: false, isActive: true, stock: { $gte: quantity } },
+        { $inc: { stock: -quantity } },
+        { session, new: true }
+      );
 
-    try {
-      const product = await Product.findById(productId).session(session);
-
-      if (!product || product.isDeleted || !product.isActive) {
-        throw new Error('Product not available');
-      }
-
-      if (product.stock < quantity) {
-        throw new Error(`Only ${product.stock} items available`);
+      if (!product) {
+        throw new Error('Product not available or insufficient stock');
       }
 
       const cartItem = await CartItem.findOneAndUpdate(
@@ -95,74 +117,47 @@ class CartService {
         { new: true, upsert: true, session }
       );
 
-      await Product.findByIdAndUpdate(
-        productId,
-        { $inc: { stock: -quantity } },
-        { session }
-      );
-
-      await session.commitTransaction();
       return cartItem;
-    } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      session.endSession();
-    }
+    });
   }
 
-  /* ================= UPDATE CART QUANTITY ================= */
+  /* ================= UPDATE CART ITEM ================= */
 
   async updateCartItemById(cartId: string, newQuantity: number) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
+    return withTransactionRetry(async (session) => {
       const cartItem = await CartItem.findById(cartId).session(session);
       if (!cartItem) throw new Error('Cart item not found');
 
-      const product = await Product.findById(cartItem.productId).session(
-        session
-      );
-      if (!product || product.isDeleted || !product.isActive) {
-        throw new Error('Product no longer available');
-      }
-
       const diff = newQuantity - cartItem.quantity;
 
-      if (diff > 0 && product.stock < diff) {
-        throw new Error(`Only ${product.stock} items available`);
+      if (diff !== 0) {
+        const product = await Product.findOneAndUpdate(
+          {
+            _id: cartItem.productId,
+            isDeleted: false,
+            isActive: true,
+            ...(diff > 0 ? { stock: { $gte: diff } } : {}),
+          },
+          { $inc: { stock: -diff } },
+          { session }
+        );
+
+        if (!product) {
+          throw new Error('Insufficient stock');
+        }
       }
 
-      await CartItem.findByIdAndUpdate(
-        cartId,
-        { quantity: newQuantity },
-        { session }
-      );
+      cartItem.quantity = newQuantity;
+      await cartItem.save({ session });
 
-      await Product.findByIdAndUpdate(
-        product._id,
-        { $inc: { stock: -diff } },
-        { session }
-      );
-
-      await session.commitTransaction();
       return true;
-    } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      session.endSession();
-    }
+    });
   }
 
   /* ================= REMOVE CART ITEM ================= */
 
   async removeItemById(cartId: string) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
+    return withTransactionRetry(async (session) => {
       const cartItem = await CartItem.findById(cartId).session(session);
       if (!cartItem) return;
 
@@ -173,23 +168,13 @@ class CartService {
       );
 
       await CartItem.findByIdAndDelete(cartId, { session });
-
-      await session.commitTransaction();
-    } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      session.endSession();
-    }
+    });
   }
 
   /* ================= CLEAR CART ================= */
 
   async clearCart(userId: string) {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
+    return withTransactionRetry(async (session) => {
       const items = await CartItem.find({ userId }).session(session);
 
       for (const item of items) {
@@ -201,14 +186,7 @@ class CartService {
       }
 
       await CartItem.deleteMany({ userId }, { session });
-
-      await session.commitTransaction();
-    } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      session.endSession();
-    }
+    });
   }
 }
 
