@@ -1,9 +1,2 @@
-import type { IUser } from "../models/User.js";
-
-declare global {
-    namespace Express {
-        interface Request {
-            user?: IUser;
-        }
-    }
-}
+// File content removed to resolve type conflicts with AuthRequest
+export { };
