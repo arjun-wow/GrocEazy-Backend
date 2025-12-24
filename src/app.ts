@@ -2,7 +2,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
-import cors from "cors";
+import corsOptions from "./config/corsConfig.js";
 import routes from "./routes/index.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import config from "./config/index.js";
@@ -17,7 +17,7 @@ export function createApp() {
 
   app.use(express.json());
   app.use(cookieParser());
-  app.use(cors());
+  app.use(corsOptions);
 
   // Root route so visiting http://localhost:4000/ shows something instead of 404
   app.get("/", (req, res) => res.send("GrocEazy Backend — API lives at /api"));
