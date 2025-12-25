@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as userController from "../controllers/user.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/authorize.middleware.js";
+import { USER_TYPE } from "../constants/roles.js";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.put("/address/:addressId", userController.updateUserAddress);
 router.delete("/address/:addressId", userController.deleteUserAddress);
 
 // Admin / Manager Routes
-const adminManager = ["admin", "manager"];
+const adminManager = [USER_TYPE.ADMIN, USER_TYPE.MANAGER];
 
 router.get("/", authorize(adminManager), userController.getAllUsers);
 router.get("/:id", authorize(adminManager), userController.getUserById);
