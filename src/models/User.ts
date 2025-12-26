@@ -1,5 +1,7 @@
 // src/models/User.ts
 import { Schema, model, Document } from "mongoose";
+import { USER_TYPE } from "../constants/roles.js";
+import type { UserRoleType } from "../constants/roles.js";
 
 export interface Address {
   _id?: string;
@@ -18,7 +20,7 @@ export interface IUser extends Document {
   password?: string;
   googleId?: string;
   authProvider: "local" | "google";
-  role: "customer" | "manager" | "admin";
+  role: UserRoleType;
   isActive?: boolean;
   addresses: Address[];
   isDeleted?: boolean;
@@ -48,7 +50,7 @@ const UserSchema = new Schema<IUser>({
   password: { type: String },
   googleId: String,
   authProvider: { type: String, enum: ["local", "google"], default: "local" },
-  role: { type: String, enum: ["customer", "manager", "admin"], default: "customer" },
+  role: { type: String, enum: Object.values(USER_TYPE), default: USER_TYPE.CUSTOMER },
   isActive: { type: Boolean, default: true },
   addresses: [AddressSchema],
   isDeleted: { type: Boolean, default: false },

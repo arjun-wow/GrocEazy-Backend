@@ -16,7 +16,7 @@ export const googleLoginSchema = z.object({
 });
 
 export const refreshSchema = z.object({
-  // refresh will be read from cookie
+  refreshToken: z.string().min(1, "Refresh token is required"),
 });
 
 export const setPasswordSchema = z.object({

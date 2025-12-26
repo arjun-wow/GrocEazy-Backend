@@ -1,7 +1,7 @@
 // src/controllers/auth.controller.ts
 import type { Request, Response } from "express";
 import * as authService from "../services/auth.service.js";
-import { registerSchema, loginSchema, googleLoginSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.validator.js";
+import { registerSchema, loginSchema, googleLoginSchema, refreshSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.validator.js";
 import { logger } from "../utils/logger.js";
 import { z } from "zod";
 import config from "../config/index.js";
@@ -42,20 +42,9 @@ export async function login(req: Request, res: Response) {
   // guard for unexpected null user (minimal check)
   if (!user) return res.status(500).json({ message: "Login succeeded but user object missing" });
 
-  // normalize sameSite to express-expected union type ("strict" | "lax" | "none")
-  const sameSite =
-    (String(config.cookie.sameSite || "strict").toLowerCase() as "strict" | "lax" | "none");
-
-  // set refresh token cookie
-  res.cookie(config.cookie.refreshTokenName, refreshToken, {
-    httpOnly: config.cookie.httpOnly,
-    secure: config.cookie.secure,
-    sameSite,
-    maxAge: config.jwt.refreshTokenExpiresDays * 24 * 60 * 60 * 1000,
-  });
-
   return res.json({
     accessToken,
+    refreshToken,
     user: {
       id: user!._id,
       name: user!.name,
@@ -78,20 +67,9 @@ export async function googleLogin(req: Request, res: Response) {
 
   const { accessToken, refreshToken, user } = await authService.loginOrRegisterGoogleUser(parse.data.token, ip, ua);
 
-  // normalize sameSite to express-expected union type ("strict" | "lax" | "none")
-  const sameSite =
-    (String(config.cookie.sameSite || "strict").toLowerCase() as "strict" | "lax" | "none");
-
-  // set refresh token cookie
-  res.cookie(config.cookie.refreshTokenName, refreshToken, {
-    httpOnly: config.cookie.httpOnly,
-    secure: config.cookie.secure,
-    sameSite,
-    maxAge: config.jwt.refreshTokenExpiresDays * 24 * 60 * 60 * 1000,
-  });
-
   return res.json({
     accessToken,
+    refreshToken,
     user: {
       id: user!._id,
       name: user!.name,
@@ -106,29 +84,30 @@ export async function googleLogin(req: Request, res: Response) {
 }
 
 export async function refresh(req: Request, res: Response) {
-  const rawToken = req.cookies[config.cookie.refreshTokenName];
-  if (!rawToken) {
-    logger.warn(`Refresh failed: No cookie named '${config.cookie.refreshTokenName}' found. Cookies: ${JSON.stringify(req.cookies)}`);
-    return res.status(401).json({ message: "No refresh token" });
+  const parse = refreshSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ message: "Refresh token is required" });
+
+  const rawToken = parse.data.refreshToken;
+
+  // Blacklist old access token if present
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const oldAccessToken = authHeader.split(" ")[1];
+    if (oldAccessToken) {
+      // fire and forget or await? Safer to await to ensure it's blacklisted before issuing new one
+      await authService.blacklistAccessToken(oldAccessToken);
+    }
   }
+
   const ip = req.ip ?? "";
   const ua = req.get("User-Agent") || "";
   const { accessToken, refreshToken, user } = await authService.rotateRefreshToken(rawToken, ip, ua);
 
   if (!user) return res.status(401).json({ message: "Invalid refresh flow: user missing" });
 
-  const sameSite =
-    (String(config.cookie.sameSite || "strict").toLowerCase() as "strict" | "lax" | "none");
-
-  // set new cookie
-  res.cookie(config.cookie.refreshTokenName, refreshToken, {
-    httpOnly: config.cookie.httpOnly,
-    secure: config.cookie.secure,
-    sameSite,
-    maxAge: config.jwt.refreshTokenExpiresDays * 24 * 60 * 60 * 1000,
-  });
   return res.json({
     accessToken,
+    refreshToken,
     user: {
       id: user._id,
       name: user.name,
@@ -142,11 +121,18 @@ export async function refresh(req: Request, res: Response) {
 }
 
 export async function logout(req: Request, res: Response) {
-  const rawToken = req.cookies[config.cookie.refreshTokenName];
-  if (rawToken) {
-    await authService.logoutByRawToken(rawToken);
-    res.clearCookie(config.cookie.refreshTokenName);
+  const { refreshToken } = req.body;
+  if (refreshToken) {
+    await authService.logoutByRawToken(refreshToken);
   }
+
+  // Blacklist access token
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const accessToken = authHeader.split(" ")[1];
+    if (accessToken) await authService.blacklistAccessToken(accessToken);
+  }
+
   return res.json({ message: "Logged out" });
 }
 

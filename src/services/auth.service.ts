@@ -4,11 +4,26 @@ import { OAuth2Client, LoginTicket } from "google-auth-library";
 import argon2 from "argon2";
 import { User } from "../models/User.js";
 import { RefreshToken } from "../models/RefreshToken.js";
+import { USER_TYPE } from "../constants/roles.js";
 import config from "../config/index.js";
 import { signAccessToken } from "../utils/jwt.util.js";
 import { logger } from "../utils/logger.js";
 import { Types } from "mongoose";
 import { sendEmail, getResetPasswordEmail } from "../utils/email.util.js";
+import { BlacklistedToken } from "../models/BlacklistedToken.js";
+import { verifyAccessToken } from "../utils/jwt.util.js";
+
+export async function blacklistAccessToken(token: string) {
+  try {
+    const decoded = verifyAccessToken(token) as any;
+    if (decoded && decoded.exp) {
+      const expiresAt = new Date(decoded.exp * 1000);
+      await BlacklistedToken.create({ token, expiresAt });
+    }
+  } catch (err) {
+    // Token might be already expired or invalid, which is fine.
+  }
+}
 
 function randomTokenString() {
   return crypto.randomBytes(64).toString("hex");
@@ -27,7 +42,7 @@ export async function registerUser({ name, email, password }: { name: string; em
     emailVerified: false,
     emailVerificationTokenHash: verificationTokenHash,
     emailVerificationExpires: expires,
-    role: "customer",
+    role: USER_TYPE.CUSTOMER,
     isActive: true,
     addresses: [],
   });
@@ -273,7 +288,7 @@ export async function loginOrRegisterGoogleUser(token: string, ipAddress?: strin
       googleId,
       authProvider: "google",
       emailVerified: true, // Google verified
-      role: "customer",
+      role: USER_TYPE.CUSTOMER,
       isActive: true,
       addresses: [],
     });
