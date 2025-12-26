@@ -110,8 +110,8 @@ class SupportService {
       SupportTicket.countDocuments(match),
       role === "admin"
         ? User.find({ role: "manager", isActive: true, isDeleted: false })
-            .select("_id name email assignedTicketsCount")
-            .lean()
+          .select("_id name email assignedTicketsCount")
+          .lean()
         : Promise.resolve(undefined),
     ]);
 
@@ -203,13 +203,7 @@ class SupportService {
         sendEmail(customer.email, mail.subject, mail.text);
       }
 
-      if (manager?.email) {
-        const mail = getTicketResolvedEmail(
-          manager.name,
-          ticket._id.toString()
-        );
-        sendEmail(manager.email, mail.subject, mail.text);
-      }
+
     }
 
     const updatedTicket = await SupportTicket.findById(ticket._id)
