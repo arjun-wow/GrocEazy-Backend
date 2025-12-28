@@ -171,10 +171,6 @@ export const cancelOrder = async (userId: string, orderId: string) => {
       throw new Error("Order cannot be cancelled in its current state");
     }
 
-    if (order.status === "Cancelled") {
-       throw new Error("Order is already cancelled");
-    }
-
     // Restore stock
     for (const item of order.items) {
       const product = await Product.findByIdAndUpdate(

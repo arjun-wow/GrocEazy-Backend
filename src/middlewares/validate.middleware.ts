@@ -9,7 +9,7 @@ export const validateRequest = (
   const result = validationResult(req);
 
   if (!result.isEmpty()) {
-    const formatted = result.array().map(err => {
+    const formatted = result.array().map((err: any) => {
       const fieldErr = err as Partial<FieldValidationError>;
 
       return {
