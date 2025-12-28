@@ -1,10 +1,9 @@
-import { body } from "express-validator";
+import { z } from "zod";
 
-export const wishlistValidators = {
-  add: [
-    body("productId").isMongoId().withMessage("Invalid productId")
-  ],
-  remove: [
-    body("productId").isMongoId()
-  ]
-};
+export const wishlistIdParamSchema = z.object({
+  wishlistId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Wishlist ID"),
+});
+
+export const addToWishlistSchema = z.object({
+  productId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Product ID"),
+});

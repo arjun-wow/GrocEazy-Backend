@@ -93,7 +93,7 @@ class SupportService {
       .limit(limit)
       .lean();
 
-    if (role !== "customer") {
+    if (role === "admin" || role === "manager" || role === "customer") {
       query = query
         .populate({
           path: "userId",
@@ -134,11 +134,11 @@ class SupportService {
       _id: ticket._id,
       subject: ticket.subject,
       description: ticket.description,
+      ticketdescription: ticket.description, // Added as alias per user request
       status: ticket.status,
       createdAt: ticket.createdAt,
-      user: role !== "customer" ? ticket.userId : undefined,
-      assignedManager:
-        role !== "customer" ? ticket.assignedManagerId : undefined,
+      user: ticket.userId, // Included for all roles so customer can see their own info
+      assignedManager: ticket.assignedManagerId, // Included for all roles
     };
   }
 
