@@ -1,19 +1,14 @@
-import { body } from "express-validator";
+import { z } from "zod";
 
-export const cartValidators = {
-  addItem: [
-    body("productId").isMongoId().withMessage("Invalid productId"),
-    body("quantity")
-      .isInt({ min: 1 })
-      .withMessage("Quantity must be at least 1")
-  ],
+export const cartIdParamSchema = z.object({
+  cartId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Cart ID"),
+});
 
-  updateItem: [
-    body("productId").isMongoId(),
-    body("quantity").isInt({ min: 1 })
-  ],
+export const addItemSchema = z.object({
+  productId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid Product ID"),
+  quantity: z.number().int().min(1, "Quantity must be at least 1"),
+});
 
-  removeItem: [
-    body("productId").isMongoId()
-  ]
-};
+export const updateItemSchema = z.object({
+  quantity: z.number().int().min(1, "Quantity must be at least 1"),
+});

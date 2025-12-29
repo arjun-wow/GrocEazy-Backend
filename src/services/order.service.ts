@@ -19,83 +19,107 @@ interface CreateOrderData {
 export const createOrder = async (data: CreateOrderData) => {
   const { userId, address } = data;
 
-  // 1️⃣ Fetch cart (stock already reserved)
-  const cartItems = await CartItem.find({ userId });
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!cartItems.length) {
-    throw new Error("Cart is empty");
-  }
+  try {
+    // 1️⃣ Fetch cart
+    const cartItems = await CartItem.find({ userId }).session(session);
 
-  let totalAmount = 0;
-  const orderItems: any[] = [];
-
-  // 2️⃣ Build order items (NO STOCK CHECK)
-  for (const item of cartItems) {
-    const product = await Product.findById(item.productId);
-
-    if (!product) {
-      throw new Error("Product not found");
+    if (!cartItems.length) {
+      throw new Error("Cart is empty");
     }
 
-    const unitPrice = product.price;
-    const lineTotal = unitPrice * item.quantity;
+    let totalAmount = 0;
+    const orderItems: any[] = [];
 
-    totalAmount += lineTotal;
+    // 2️⃣ Check stock, decrement it, and build order items
+    for (const item of cartItems) {
+      const product = await Product.findOneAndUpdate(
+        {
+          _id: item.productId,
+          isDeleted: false,
+          isActive: true,
+          stock: { $gte: item.quantity },
+        },
+        { $inc: { stock: -item.quantity } },
+        { session, new: true }
+      );
 
-    orderItems.push({
-      productId: product._id,
-      quantity: item.quantity,
-      unitPrice,
-      lineTotal,
+      if (!product) {
+        throw new Error(
+          `Product ${item.productId} is unavailable or has insufficient stock`
+        );
+      }
+
+      const unitPrice = product.price;
+      const lineTotal = unitPrice * item.quantity;
+
+      totalAmount += lineTotal;
+
+      orderItems.push({
+        productId: product._id,
+        quantity: item.quantity,
+        unitPrice,
+        lineTotal,
+      });
+
+      // ⚠️ LOW STOCK EMAIL (stock already reduced in this session)
+      const threshold = (product as any).lowStockThreshold ?? 10;
+      if (product.stock <= threshold) {
+        const managers = await User.find({
+          role: "manager",
+          isActive: true,
+        })
+          .session(session)
+          .select("email name");
+
+        const recipients = managers.map((m) => ({
+          email: m.email,
+          name: m.name,
+        }));
+
+        const adminEmail = process.env.ADMIN_EMAIL || "admin@groceazy.com";
+        recipients.push({ email: adminEmail, name: "Admin" });
+
+        const emailTemplate = getLowStockEmail(
+          product.name,
+          product.stock,
+          product._id.toString()
+        );
+
+        sendEmail(recipients, emailTemplate.subject, emailTemplate.text).catch(
+          (err) =>
+            logger.error(
+              `Failed to send low stock email for ${product.name}: ${err}`
+            )
+        );
+      }
+    }
+
+    // 3️⃣ Create order
+    const newOrder = new Order({
+      userId,
+      address,
+      items: orderItems,
+      totalAmount,
+      status: "Pending",
+      paymentStatus: "Pending",
     });
 
-    // ⚠️ LOW STOCK EMAIL (safe here – stock already reduced)
-    const threshold = (product as any).lowStockThreshold ?? 10;
-    if (product.stock <= threshold) {
-      const managers = await User.find({
-        role: "manager",
-        isActive: true,
-      }).select("email name");
+    const savedOrder = await newOrder.save({ session });
 
-      const recipients = managers.map((m) => ({
-        email: m.email,
-        name: m.name,
-      }));
+    // 4️⃣ Clear cart
+    await CartItem.deleteMany({ userId }, { session });
 
-      const adminEmail = process.env.ADMIN_EMAIL || "admin@groceazy.com";
-      recipients.push({ email: adminEmail, name: "Admin" });
-
-      const emailTemplate = getLowStockEmail(
-        product.name,
-        product.stock,
-        product._id.toString()
-      );
-
-      sendEmail(recipients, emailTemplate.subject, emailTemplate.text).catch(
-        (err) =>
-          logger.error(
-            `Failed to send low stock email for ${product.name}: ${err}`
-          )
-      );
-    }
+    await session.commitTransaction();
+    return savedOrder;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  // 3️⃣ Create order
-  const newOrder = new Order({
-    userId,
-    address,
-    items: orderItems,
-    totalAmount,
-    status: "Pending",
-    paymentStatus: "Pending",
-  });
-
-  const savedOrder = await newOrder.save();
-
-  // 4️⃣ Clear cart (DO NOT restore stock)
-  await CartItem.deleteMany({ userId });
-
-  return savedOrder;
 };
 
 /* ================= GET MY ORDERS ================= */
@@ -130,30 +154,47 @@ export const cancelOrder = async (userId: string, orderId: string) => {
     throw new Error("Invalid Order ID");
   }
 
-  const order = await Order.findOne({
-    _id: new mongoose.Types.ObjectId(orderId),
-    userId,
-  });
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!order) {
-    throw new Error("Order not found");
+  try {
+    const order = await Order.findOne({
+      _id: new mongoose.Types.ObjectId(orderId),
+      userId,
+    }).session(session);
+
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    if (order.status !== "Pending" && order.status !== "Processing") {
+      throw new Error("Order cannot be cancelled in its current state");
+    }
+
+    // Restore stock
+    for (const item of order.items) {
+      const product = await Product.findByIdAndUpdate(
+        item.productId,
+        { $inc: { stock: item.quantity } },
+        { session, new: true }
+      );
+      
+      if (!product) {
+        throw new Error(`Product ${item.productId} not found during stock restoration`);
+      }
+    }
+
+    order.status = "Cancelled";
+    await order.save({ session });
+
+    await session.commitTransaction();
+    return order;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  if (order.status !== "Pending" && order.status !== "Processing") {
-    throw new Error("Order cannot be cancelled in its current state");
-  }
-
-  order.status = "Cancelled";
-  await order.save();
-
-  // ✅ Restore stock on cancel
-  for (const item of order.items) {
-    await Product.findByIdAndUpdate(item.productId, {
-      $inc: { stock: item.quantity },
-    });
-  }
-
-  return order;
 };
 
 /* ================= GET ALL ORDERS ================= */
@@ -207,18 +248,64 @@ export const updateOrderStatus = async (
     throw new Error("Invalid order status");
   }
 
-  const order = await Order.findById(orderId);
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!order) {
-    throw new Error("Order not found");
+  try {
+    const order = await Order.findById(orderId).session(session);
+
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    if (order.status === "Delivered") {
+      throw new Error("Delivered order status cannot be changed");
+    }
+
+    const oldStatus = order.status;
+
+    // 1️⃣ Moving TO Cancelled from an active status -> RESTORE STOCK
+    if (status === "Cancelled" && oldStatus !== "Cancelled") {
+      for (const item of order.items) {
+        await Product.findByIdAndUpdate(
+          item.productId,
+          { $inc: { stock: item.quantity } },
+          { session }
+        );
+      }
+    }
+
+    // 2️⃣ Moving FROM Cancelled to an active status -> DEDUCT STOCK (check availability)
+    if (oldStatus === "Cancelled" && status !== "Cancelled") {
+      for (const item of order.items) {
+        const product = await Product.findOneAndUpdate(
+          {
+            _id: item.productId,
+            isDeleted: false,
+            isActive: true,
+            stock: { $gte: item.quantity },
+          },
+          { $inc: { stock: -item.quantity } },
+          { session, new: true }
+        );
+
+        if (!product) {
+          throw new Error(
+            `Cannot revert cancellation: Product ${item.productId} is unavailable or has insufficient stock`
+          );
+        }
+      }
+    }
+
+    order.status = status;
+    await order.save({ session });
+
+    await session.commitTransaction();
+    return order;
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
   }
-
-  if (order.status === "Delivered") {
-    throw new Error("Delivered order status cannot be changed");
-  }
-
-  order.status = status;
-  await order.save();
-
-  return order;
 };
