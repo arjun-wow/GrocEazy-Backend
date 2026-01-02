@@ -25,8 +25,13 @@ export const createProduct: RequestHandler = async (req, res, next) => {
 export const getAllProducts: RequestHandler = async (req, res, next) => {
     try {
         const { page, limit, ...filter } = req.query as any;
+        const user = (req as any).user;
 
-        const result = await ProductService.getAllProducts(filter, page, limit);
+        // Inactive products are ONLY included if using the dedicated manager route
+        const isManagerRoute = req.baseUrl.includes("/manager/all") || req.path.includes("/manager/all");
+        const includeInactive = isManagerRoute && user && ["manager", "admin"].includes(user.role);
+
+        const result = await ProductService.getAllProducts(filter, page, limit, includeInactive);
         res.status(200).json(result);
     } catch (error) {
         logger.error("Error fetching products", error);
@@ -37,11 +42,17 @@ export const getAllProducts: RequestHandler = async (req, res, next) => {
 export const getProductById: RequestHandler = async (req, res, next) => {
     try {
         const { id } = req.params;
+        const user = (req as any).user;
+
         if (!id) {
             res.status(400).json({ message: "Product ID is required" });
             return;
         }
-        const product = await ProductService.getProductById(id);
+
+        // Only Managers/Admins can see inactive products if they are authenticated
+        const includeInactive = user && ["manager", "admin"].includes(user.role);
+        const product = await ProductService.getProductById(id, includeInactive);
+
         if (!product) {
             res.status(404).json({ message: "Product not found" });
             return;
