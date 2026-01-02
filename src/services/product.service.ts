@@ -23,8 +23,11 @@ class ProductService {
         return await product.save();
     }
 
-    async getAllProducts(filter: GetProductsQuery, page: number = 1, limit: number = 20) {
-        const query: any = { isDeleted: false, isActive: true };
+    async getAllProducts(filter: GetProductsQuery, page: number = 1, limit: number = 20, includeInactive: boolean = false) {
+        const query: any = { isDeleted: false };
+        if (!includeInactive) {
+            query.isActive = true;
+        }
 
         const categoryId = filter.categoryId || filter.category;
         if (categoryId) {
@@ -60,8 +63,12 @@ class ProductService {
         };
     }
 
-    async getProductById(id: string): Promise<IProduct | null> {
-        return await Product.findOne({ _id: id, isDeleted: false }).populate("categoryId", "name");
+    async getProductById(id: string, includeInactive: boolean = false): Promise<IProduct | null> {
+        const query: any = { _id: id, isDeleted: false };
+        if (!includeInactive) {
+            query.isActive = true;
+        }
+        return await Product.findOne(query).populate("categoryId", "name");
     }
 
     async updateProduct(id: string, data: UpdateProductInput, files?: Express.Multer.File[]): Promise<IProduct | null> {

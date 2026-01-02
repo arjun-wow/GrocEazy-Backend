@@ -20,9 +20,10 @@ const router = Router();
 
 // Public routes
 router.get("/", validateQuery(productValidators.getProductsQuerySchema), getAllProducts);
-router.get("/recommendations/top-10", getTopProducts); // specific route BEFORE /:id
-router.get("/:id/similar", validateParams(productValidators.productIdSchema), getSimilarProducts);        // specific route
-router.get("/:id", validateParams(productValidators.productIdSchema), getProductById);                    // generic catch-all for ID
+router.get("/manager/all", authenticate, requireRole(["manager", "admin"]), validateQuery(productValidators.getProductsQuerySchema), getAllProducts); // Reusing getAllProducts
+router.get("/recommendations/top-10", getTopProducts);
+router.get("/:id/similar", validateParams(productValidators.productIdSchema), getSimilarProducts);
+router.get("/:id", validateParams(productValidators.productIdSchema), getProductById);
 
 // Protected routes (Manager only)
 router.post(
