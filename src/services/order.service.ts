@@ -47,8 +47,13 @@ export const createOrder = async (data: CreateOrderData) => {
       );
 
       if (!product) {
+        // Find product to get its name for a better error message
+        const p = await Product.findById(item.productId).session(session);
+        if (!p || p.isDeleted || !p.isActive) {
+          throw new Error(`Product "${p?.name || item.productId}" is no longer available`);
+        }
         throw new Error(
-          `Product ${item.productId} is unavailable or has insufficient stock`
+          `Product "${p.name}" has insufficient stock (Requested: ${item.quantity}, Available: ${p.stock})`
         );
       }
 
