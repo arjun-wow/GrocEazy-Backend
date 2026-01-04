@@ -19,8 +19,13 @@ export const createCategory: RequestHandler = async (req, res, next) => {
 
 export const getAllCategories: RequestHandler = async (req, res, next) => {
     try {
-        const categories = await CategoryService.getAllCategories();
-        res.status(200).json(categories);
+        const { search, page, limit } = req.query;
+        const result = await CategoryService.getAllCategories(
+            search as string,
+            Number(page) || 1,
+            Number(limit) || 20
+        );
+        res.status(200).json(result);
     } catch (error) {
         logger.error("Error fetching categories", error);
         res.status(500).json({ message: "Error fetching categories", error });

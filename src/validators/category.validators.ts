@@ -17,8 +17,15 @@ export const categoryIdSchema = z.object({
   id: objectId,
 });
 
+export const getCategoriesQuerySchema = z.object({
+  search: z.string().optional(),
+  page: z.string().optional().default("1"),
+  limit: z.string().optional().default("20"),
+});
+
 export const categoryValidators = {
   createCategorySchema,
   updateCategorySchema,
   categoryIdSchema,
+  getCategoriesQuerySchema,
 };

@@ -44,6 +44,9 @@ const ProductSchema: Schema = new Schema(
 
 // Indexes for common queries
 ProductSchema.index({ categoryId: 1 });
+ProductSchema.index({ name: 1 });
+ProductSchema.index({ isActive: 1 });
+ProductSchema.index({ isDeleted: 1 });
 ProductSchema.index({ name: "text", description: "text" });
 
 export default mongoose.model<IProduct>("Product", ProductSchema);

@@ -6,9 +6,29 @@ class CategoryService {
         return await category.save();
     }
 
-    async getAllCategories(): Promise<ICategory[]> {
-        // Return all non-deleted categories
-        return await Category.find({ isDeleted: false });
+    async getAllCategories(search?: string, page: number = 1, limit: number = 20) {
+        const query: any = { isDeleted: false };
+        if (search) {
+            query.name = { $regex: search, $options: "i" };
+        }
+
+        const skip = (page - 1) * limit;
+
+        const [categories, total] = await Promise.all([
+            Category.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Category.countDocuments(query)
+        ]);
+
+        return {
+            categories,
+            total,
+            page,
+            pages: Math.ceil(total / limit)
+        };
     }
 
     async getCategoryById(id: string): Promise<ICategory | null> {
