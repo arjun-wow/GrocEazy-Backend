@@ -10,7 +10,7 @@ import { categoryValidators } from "../validators/category.validators.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { requireRole } from "../middlewares/role.middleware.js";
 import { upload } from "../middlewares/upload.middleware.js";
-import { validateBody, validateParams } from "../middlewares/zod.middleware.js";
+import { validateBody, validateParams, validateQuery } from "../middlewares/zod.middleware.js";
 
 const router = Router();
 
@@ -19,11 +19,12 @@ router.get(
     "/manager",
     authenticate,
     requireRole(["manager", "admin"]),
+    validateQuery(categoryValidators.getCategoriesQuerySchema),
     getAllCategories
 );
 
 // Public routes
-router.get("/", getAllCategories);
+router.get("/", validateQuery(categoryValidators.getCategoriesQuerySchema), getAllCategories);
 router.get("/:id", validateParams(categoryValidators.categoryIdSchema), getCategoryById);
 
 // Protected routes (Manager only)

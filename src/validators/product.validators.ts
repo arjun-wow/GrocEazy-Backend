@@ -33,14 +33,16 @@ export const productIdSchema = z.object({
 });
 
 export const getProductsQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).default(20),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).optional(),
   categoryId: objectId.optional(),
   category: objectId.optional(),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
   search: z.string().trim().optional(),
   dietary: z.string().trim().optional(),
+  isActive: z.union([z.boolean(), z.string().transform((val) => val === 'true')]).optional(),
+  sortBy: z.enum(['price_asc', 'price_desc', 'newest', 'featured']).optional(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;

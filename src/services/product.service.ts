@@ -23,7 +23,7 @@ class ProductService {
         return await product.save();
     }
 
-    async getAllProducts(filter: GetProductsQuery, page: number = 1, limit: number = 20, includeInactive: boolean = false) {
+    async getAllProducts(filter: GetProductsQuery, page?: number, limit?: number, includeInactive: boolean = false) {
         const query: any = { isDeleted: false };
         if (!includeInactive) {
             query.isActive = true;
@@ -40,26 +40,44 @@ class ProductService {
 
         if (filter.minPrice !== undefined || filter.maxPrice !== undefined) {
             query.price = {};
-            if (filter.minPrice !== undefined) query.price.$gte = filter.minPrice;
-            if (filter.maxPrice !== undefined) query.price.$lte = filter.maxPrice;
+            if (filter.minPrice !== undefined) query.price.$gte = Number(filter.minPrice);
+            if (filter.maxPrice !== undefined) query.price.$lte = Number(filter.maxPrice);
         }
 
         if (filter.search) {
-            query.name = filter.search;
+            query.$text = { $search: filter.search };
         }
 
-        const skip = (page - 1) * limit;
+        if (filter.isActive !== undefined) {
+            query.isActive = filter.isActive;
+        }
+
+        const sortOptions: any = {};
+        if (filter.sortBy === 'price_asc') sortOptions.price = 1;
+        else if (filter.sortBy === 'price_desc') sortOptions.price = -1;
+        else if (filter.sortBy === 'newest') sortOptions.createdAt = -1;
+        else sortOptions.createdAt = -1; // Default to newest
+
+        const skip = page && limit ? (page - 1) * limit : 0;
+
+        let findQuery = Product.find(query)
+            .sort(sortOptions);
+
+        if (limit) {
+            findQuery = findQuery.skip(skip).limit(limit);
+        }
 
         const [products, total] = await Promise.all([
-            Product.find(query).skip(skip).limit(limit).populate("categoryId", "name"),
+            findQuery.populate("categoryId", "name").lean(),
             Product.countDocuments(query)
         ]);
 
         return {
             products,
             total,
-            page,
-            pages: Math.ceil(total / limit)
+            page: page || 1,
+            limit: limit || total,
+            pages: limit ? Math.ceil(total / limit) : 1
         };
     }
 
