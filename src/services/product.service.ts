@@ -52,6 +52,23 @@ class ProductService {
             query.isActive = filter.isActive;
         }
 
+        if (filter.stockStatus) {
+            switch (filter.stockStatus) {
+                case 'outOfStock':
+                    query.stock = { $lte: 0 };
+                    break;
+                case 'lowStock':
+                    query.$and = [
+                        { stock: { $gt: 0 } },
+                        { $expr: { $lte: ["$stock", "$lowStockThreshold"] } }
+                    ];
+                    break;
+                case 'inStock':
+                    query.$expr = { $gt: ["$stock", "$lowStockThreshold"] };
+                    break;
+            }
+        }
+
         const sortOptions: any = {};
         if (filter.sortBy === 'price_asc') sortOptions.price = 1;
         else if (filter.sortBy === 'price_desc') sortOptions.price = -1;

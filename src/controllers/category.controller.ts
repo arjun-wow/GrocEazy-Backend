@@ -19,11 +19,12 @@ export const createCategory: RequestHandler = async (req, res, next) => {
 
 export const getAllCategories: RequestHandler = async (req, res, next) => {
     try {
-        const { search, page, limit } = req.query;
+        const { search, page, limit, sortBy } = req.query;
         const result = await CategoryService.getAllCategories(
             search as string,
             Number(page) || 1,
-            Number(limit) || 20
+            Number(limit) || 20,
+            sortBy as string
         );
         res.status(200).json(result);
     } catch (error) {
