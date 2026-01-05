@@ -54,17 +54,17 @@ class ProductService {
 
         if (filter.stockStatus) {
             switch (filter.stockStatus) {
-                case 'outOfStock':
-                    query.stock = { $lte: 0 };
+                case 'out':
+                    query.stock = 0;
                     break;
-                case 'lowStock':
+                case 'low':
                     query.$and = [
                         { stock: { $gt: 0 } },
-                        { $expr: { $lte: ["$stock", "$lowStockThreshold"] } }
+                        { $expr: { $lte: ["$stock", { $ifNull: ["$lowStockThreshold", 5] }] } }
                     ];
                     break;
-                case 'inStock':
-                    query.$expr = { $gt: ["$stock", "$lowStockThreshold"] };
+                case 'in':
+                    query.$expr = { $gt: ["$stock", { $ifNull: ["$lowStockThreshold", 5] }] };
                     break;
             }
         }

@@ -42,7 +42,7 @@ export const getProductsQuerySchema = z.object({
   search: z.string().trim().optional(),
   dietary: z.string().trim().optional(),
   isActive: z.union([z.boolean(), z.string().transform((val) => val === 'true')]).optional(),
-  stockStatus: z.enum(['inStock', 'lowStock', 'outOfStock']).optional(),
+  stockStatus: z.enum(['in', 'low', 'out']).optional(),
   sortBy: z.enum(['price_asc', 'price_desc', 'newest', 'featured']).optional(),
 });
 
