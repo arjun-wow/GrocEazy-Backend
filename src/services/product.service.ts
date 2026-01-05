@@ -170,6 +170,16 @@ class ProductService {
             .limit(limit)
             .populate("categoryId", "name");
     }
+
+    /**
+     * Get all products for analytics (unpaginated, includes inactive)
+     */
+    async getAnalyticsProducts() {
+        return await Product.find({ isDeleted: false })
+            .sort({ createdAt: -1 })
+            .populate("categoryId", "name")
+            .lean();
+    }
 }
 
 export default new ProductService();

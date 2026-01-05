@@ -8,6 +8,7 @@ import {
     deleteProduct,
     getSimilarProducts,
     getTopProducts,
+    getAnalyticsProducts,
 } from "../controllers/product.controller.js";
 import { productValidators } from "../validators/product.validators.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -22,6 +23,7 @@ const router = Router();
 router.get("/", validateQuery(productValidators.getProductsQuerySchema), getAllProducts);
 router.get("/manager/all", authenticate, requireRole(["manager", "admin"]), validateQuery(productValidators.getProductsQuerySchema), getAllProducts); // Reusing getAllProducts
 router.get("/recommendations/top-10", getTopProducts);
+router.get("/analytics", authenticate, requireRole(["manager", "admin"]), getAnalyticsProducts);
 router.get("/:id/similar", validateParams(productValidators.productIdSchema), getSimilarProducts);
 router.get("/:id", validateParams(productValidators.productIdSchema), getProductById);
 

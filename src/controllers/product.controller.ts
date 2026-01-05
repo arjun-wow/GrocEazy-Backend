@@ -128,3 +128,13 @@ export const getTopProducts: RequestHandler = async (req, res, next) => {
         res.status(500).json({ message: "Error fetching top products", error });
     }
 };
+
+export const getAnalyticsProducts: RequestHandler = async (_req, res, _next) => {
+    try {
+        const products = await ProductService.getAnalyticsProducts();
+        res.status(200).json(products);
+    } catch (error) {
+        logger.error("Error fetching analytics products", error);
+        res.status(500).json({ message: "Error fetching analytics products", error });
+    }
+};
