@@ -32,12 +32,16 @@ export const getAllTickets = async (req: AuthRequest, res: Response) => {
 
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
+    const status = req.query.status as string;
+    const assignedManager = req.query.assignedManager as string;
 
     const result = await SupportService.getAllTickets(
       userId,
       role,
       page,
-      limit
+      limit,
+      status,
+      assignedManager
     );
 
     return res.json({
