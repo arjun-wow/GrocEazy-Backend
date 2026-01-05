@@ -73,7 +73,9 @@ class SupportService {
     userId: string,
     role: string,
     page = 1,
-    limit = 10
+    limit = 10,
+    status?: string,
+    managerId?: string
   ) {
     const skip = (page - 1) * limit;
 
@@ -85,6 +87,15 @@ class SupportService {
 
     if (role === "manager") {
       match.assignedManagerId = userId;
+    }
+
+    // Admin can filter by manager
+    if (role === "admin" && managerId && managerId !== "all") {
+      match.assignedManagerId = managerId;
+    }
+
+    if (status && status !== "all") {
+      match.status = status;
     }
 
     let query = SupportTicket.find(match)

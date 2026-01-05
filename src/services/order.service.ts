@@ -129,8 +129,30 @@ export const createOrder = async (data: CreateOrderData) => {
 
 /* ================= GET MY ORDERS ================= */
 
-export const getMyOrders = async (userId: string) => {
-  return await Order.find({ userId }).sort({ createdAt: -1 });
+export const getMyOrders = async (userId: string, page = 1, limit = 5, status?: string) => {
+  const skip = (page - 1) * limit;
+  const match: any = { userId };
+
+  if (status && status !== "all") {
+    match.status = status;
+  }
+
+  const [orders, total] = await Promise.all([
+    Order.find(match)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Order.countDocuments(match)
+  ]);
+
+  return {
+    orders,
+    pagination: {
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    },
+  };
 };
 
 /* ================= GET ORDER BY ID ================= */
@@ -204,20 +226,27 @@ export const cancelOrder = async (userId: string, orderId: string) => {
 
 /* ================= GET ALL ORDERS ================= */
 
-export const getAllOrders = async (page = 1, limit = 20) => {
+export const getAllOrders = async (page = 1, limit = 20, status?: string) => {
   const skip = (page - 1) * limit;
-  const total = await Order.countDocuments();
 
-  const orders = await Order.find()
-    .populate("userId", "name email")
-    .populate({
-      path: "items.productId",
-      model: "Product",
-      select: "name images price",
-    })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const match: any = {};
+  if (status && status !== "all") {
+    match.status = status;
+  }
+
+  const [orders, total] = await Promise.all([
+    Order.find(match)
+      .populate("userId", "name email")
+      .populate({
+        path: "items.productId",
+        model: "Product",
+        select: "name images price",
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Order.countDocuments(match)
+  ]);
 
   return {
     orders,

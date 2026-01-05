@@ -99,8 +99,12 @@ export const changeOrderStatus = async (req: Request, res: Response) => {
 export const getMyOrders = async (req: AuthRequest, res: Response) => {
   try {
     const userId = getUserId(req);
-    const orders = await orderService.getMyOrders(userId);
-    res.json(orders);
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 5;
+    const status = req.query.status as string;
+
+    const result = await orderService.getMyOrders(userId, page, limit, status);
+    res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
@@ -166,8 +170,9 @@ export const getAllOrders = async (req: Request, res: Response) => {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
+    const status = req.query.status as string;
 
-    const result = await orderService.getAllOrders(page, limit);
+    const result = await orderService.getAllOrders(page, limit, status);
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
