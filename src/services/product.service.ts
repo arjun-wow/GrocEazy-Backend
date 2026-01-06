@@ -176,6 +176,7 @@ class ProductService {
      */
     async getAnalyticsProducts() {
         return await Product.find({ isDeleted: false })
+            .select("name price stock isActive createdAt images lowStockThreshold")
             .sort({ createdAt: -1 })
             .populate("categoryId", "name")
             .lean();
