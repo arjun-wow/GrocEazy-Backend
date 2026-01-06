@@ -45,7 +45,7 @@ class ProductService {
         }
 
         if (filter.search) {
-            query.$text = { $search: filter.search };
+            query.name = { $regex: filter.search, $options: 'i' };
         }
 
         if (filter.isActive !== undefined) {
