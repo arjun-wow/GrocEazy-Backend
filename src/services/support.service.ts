@@ -14,11 +14,48 @@ class SupportService {
     subject: string,
     description: string
   ) {
-    const manager = await User.findOne({
-      role: "manager",
-      isActive: true,
-      isDeleted: false,
-    }).sort({ assignedTicketsCount: 1, _id: 1 });
+    // Find manager with the least number of active tickets (open or in_progress)
+    const managersWithTicketCounts = await User.aggregate([
+      {
+        $match: {
+          role: "manager",
+          isActive: true,
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: "supporttickets",
+          let: { managerId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$assignedManagerId", "$$managerId"] },
+                    { $in: ["$status", ["open", "in_progress"]] },
+                    { $eq: ["$isDeleted", false] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: "activeTickets",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          email: 1,
+          activeCount: { $size: "$activeTickets" },
+        },
+      },
+      { $sort: { activeCount: 1, _id: 1 } },
+      { $limit: 1 },
+    ]);
+
+    const manager = managersWithTicketCounts[0];
 
     if (!manager) {
       throw new Error("No manager available");
