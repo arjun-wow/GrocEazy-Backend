@@ -1,27 +1,25 @@
 // src/controllers/auth.controller.ts
 import type { Request, Response } from "express";
 import * as authService from "../services/auth.service.js";
-import { registerSchema, loginSchema, googleLoginSchema, refreshSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchema } from "../validators/auth.validator.js";
+import { registerSchema, loginSchema, googleLoginSchema, refreshSchema, setPasswordSchema, forgotPasswordSchema, resetPasswordSchema, verifyOtpSchema, resendOtpSchema } from "../validators/auth.validator.js";
 import { logger } from "../utils/logger.js";
 import { z } from "zod";
 import config from "../config/index.js";
 
-import { sendEmail, getWelcomeEmail } from "../utils/email.util.js";
+import { sendEmail, getWelcomeEmail, getOtpEmail } from "../utils/email.util.js";
+import { signAccessToken } from "../utils/jwt.util.js";
 
 export async function register(req: Request, res: Response) {
   const parse = registerSchema.safeParse(req.body);
   if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
   const { name, email, password } = parse.data;
-  const { user, verificationToken } = await authService.registerUser({ name, email, password });
+  const { user, otp } = await authService.registerUser({ name, email, password });
 
-  // Send Welcome Email
-  const { subject, text } = getWelcomeEmail(user.name);
-  // Fire and forget email
-  sendEmail(user.email, subject, text).catch(err => logger.error("Failed to send welcome email", err));
+  // Send OTP Email
+  const { subject, text } = getOtpEmail(otp);
+  sendEmail(user.email, subject, text).catch(err => logger.error("Failed to send OTP email", err));
 
-  // Provide verification link in email like: `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}&id=${user._id}`
-  // For dev convenience we return token here — remove in prod.
-  return res.status(201).json({ message: "Registered. Check email for verification.", userId: user._id });
+  return res.status(201).json({ message: "Registered. Check email for OTP.", userId: user._id, email: user.email });
 }
 
 export async function login(req: Request, res: Response) {
@@ -137,10 +135,59 @@ export async function logout(req: Request, res: Response) {
 }
 
 export async function verifyEmail(req: Request, res: Response) {
+  // Legacy or URL based verification if needed, otherwise deprecate
   const { id, token } = req.query as any;
   if (!id || !token) return res.status(400).json({ message: "Invalid request" });
-  await authService.verifyEmail(id, token);
-  return res.json({ message: "Email verified" });
+  // authService.verifyEmail(id, token); // We replaced/removed verifyEmail logic for OTP, but let's assume we want to keep it if we didn't remove it. 
+  // actually we replaced verifyEmail signature in service file?
+  // I replaced it with `verifyOtp` and `resendOtp`. So `verifyEmail` in service is GONE.
+  // I should remove this controller function or update it to use verifyOtp if it was generic.
+  // But usage suggests this endpoint was GET /verify-email?id=...&token=... 
+  // I will deprecate this endpoint or remove it.
+  return res.status(404).json({ message: "Use verify-otp endpoint" });
+}
+
+export async function verifyOtp(req: Request, res: Response) {
+  const parse = verifyOtpSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
+
+  const { email, otp } = parse.data;
+  const user = await authService.verifyOtp(email, otp);
+
+  // Auto login
+  const accessToken = signAccessToken({ sub: user._id.toString(), role: user.role });
+  const ip = req.ip ?? "";
+  const ua = req.get("User-Agent") || "";
+  const { rawToken: refreshToken } = await authService.createRefreshTokenSession(user._id, ip, ua);
+
+  return res.json({
+    message: "Email verified successfully",
+    accessToken,
+    refreshToken,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone || "",
+      hasPassword: !!user.password,
+      isActive: !!user.isActive,
+      addresses: user.addresses || []
+    }
+  });
+}
+
+export async function resendOtp(req: Request, res: Response) {
+  const parse = resendOtpSchema.safeParse(req.body);
+  if (!parse.success) return res.status(400).json({ message: parse.error.flatten() });
+
+  const { email } = parse.data;
+  const { user, otp } = await authService.resendOtp(email);
+
+  const { subject, text } = getOtpEmail(otp);
+  sendEmail(user.email, subject, text).catch(err => logger.error("Failed to send OTP email", err));
+
+  return res.json({ message: "OTP resent successfully" });
 }
 
 export async function setPassword(req: Request, res: Response) {

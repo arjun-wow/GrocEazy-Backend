@@ -203,6 +203,7 @@ GrocEazy Team
 `
 });
 
+
 export const getLowStockEmail = (productName: string, currentStock: number, productId: string) => ({
     subject: `Low Stock Alert: ${productName}`,
     text: `
@@ -216,5 +217,19 @@ Please restock immediately.
 
 Regards,
 GrocEazy System
+`
+});
+
+export const getOtpEmail = (otpCode: string) => ({
+    subject: "Your Verification Code",
+    text: `
+Hello,
+
+Your verification code is: ${otpCode}
+
+This code is valid for 10 minutes. Do not share this code with anyone.
+
+Regards,
+GrocEazy Team
 `
 });
