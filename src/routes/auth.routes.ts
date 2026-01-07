@@ -20,6 +20,8 @@ router.post("/google", authLimiter, authCtrl.googleLogin);
 router.post("/refresh", authCtrl.refresh); // no limit (refresh uses cookies)
 router.post("/logout", authCtrl.logout);
 router.get("/verify-email", authCtrl.verifyEmail);
+router.post("/verify-otp", authLimiter, authCtrl.verifyOtp);
+router.post("/resend-otp", authLimiter, authCtrl.resendOtp);
 router.post("/set-password", authenticate, authLimiter, authCtrl.setPassword);
 router.post("/forgot-password", authLimiter, authCtrl.forgotPassword);
 router.post("/reset-password", authLimiter, authCtrl.resetPassword);

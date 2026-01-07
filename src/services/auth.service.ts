@@ -31,12 +31,18 @@ function randomTokenString() {
 
 export async function registerUser({ name, email, password }: { name: string; email: string; password: string; }) {
   const existing = await User.findOne({ email });
-  if (existing) throw { status: 409, message: "Email already registered" };
+  if (existing) {
+    // If user exists but not verified, we might want to resend OTP?
+    // For now, standard "exists" error.
+    throw { status: 409, message: "Email already registered" };
+  }
   const hashedPassword = await argon2.hash(password);
-  // create email verification token
-  const verificationToken = randomTokenString();
-  const verificationTokenHash = await argon2.hash(verificationToken);
-  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const verificationTokenHash = await argon2.hash(otp);
+  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
   const user = await User.create({
     name, email, password: hashedPassword,
     emailVerified: false,
@@ -46,10 +52,8 @@ export async function registerUser({ name, email, password }: { name: string; em
     isActive: true,
     addresses: [],
   });
-  // TODO: send verification email containing verificationToken (not hashed)
-  // e.g., /auth/verify-email?token=<verificationToken>&id=<user._id>
-  logger.info(`Send verification email to ${email}`);
-  return { user, verificationToken }; // caller uses token to email user
+
+  return { user, otp };
 }
 
 /**
@@ -231,19 +235,44 @@ export async function logoutByRawToken(rawToken: string) {
 /**
  * Verify email token and mark emailVerified true
  */
-export async function verifyEmail(userId: string, token: string) {
-  const user = await User.findById(userId);
-  if (!user) throw { status: 400, message: "Invalid verification request" };
+
+/**
+ * Verify OTP and mark emailVerified true
+ */
+export async function verifyOtp(email: string, otp: string) {
+  const user = await User.findOne({ email });
+  if (!user) throw { status: 400, message: "User not found" };
+  if (user.emailVerified) return user; // Already verified
+
   if (!user.emailVerificationTokenHash || !user.emailVerificationExpires) throw { status: 400, message: "No verification pending" };
-  if (user.emailVerificationExpires < new Date()) throw { status: 400, message: "Verification token expired" };
-  const ok = await argon2.verify(user.emailVerificationTokenHash, token);
-  if (!ok) throw { status: 400, message: "Invalid token" };
+  if (user.emailVerificationExpires < new Date()) throw { status: 400, message: "OTP expired" };
+
+  const ok = await argon2.verify(user.emailVerificationTokenHash, otp);
+  if (!ok) throw { status: 400, message: "Invalid OTP" };
+
   user.emailVerified = true;
   user.emailVerificationTokenHash = null;
   user.emailVerificationExpires = null;
   await user.save();
   return user;
 }
+
+export async function resendOtp(email: string) {
+  const user = await User.findOne({ email });
+  if (!user) throw { status: 404, message: "User not found" };
+  if (user.emailVerified) throw { status: 400, message: "Email already verified" };
+
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const verificationTokenHash = await argon2.hash(otp);
+  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
+
+  user.emailVerificationTokenHash = verificationTokenHash;
+  user.emailVerificationExpires = expires;
+  await user.save();
+
+  return { user, otp };
+}
+
 
 
 
