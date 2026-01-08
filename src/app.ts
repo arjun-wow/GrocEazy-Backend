@@ -9,6 +9,12 @@ import config from "./config/index.js";
 
 export function createApp() {
   const app = express();
+  
+  // DEBUG LOGGER: Verify requests are hitting this server
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] INCOMING REQUEST: ${req.method} ${req.url}`);
+    next();
+  });
 
   // Disable strict CSP for local dev to avoid extension/devtools blocks.
   // Keep CSP enabled in production by toggling via NODE_ENV.

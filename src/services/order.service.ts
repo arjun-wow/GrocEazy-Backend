@@ -21,6 +21,8 @@ export const createOrder = async (data: CreateOrderData) => {
 
   const session = await mongoose.startSession();
   session.startTransaction();
+  console.log("User ID:", userId);
+       
 
   try {
     // 1️⃣ Fetch cart
@@ -32,6 +34,9 @@ export const createOrder = async (data: CreateOrderData) => {
 
     let totalAmount = 0;
     const orderItems: any[] = [];
+
+    console.log("User ID:", userId);
+       
 
     // 2️⃣ Check stock, decrement it, and build order items
     for (const item of cartItems) {

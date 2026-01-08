@@ -22,6 +22,7 @@ export interface IOrder extends Document {
     items: IOrderItem[];
     status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled";
     paymentStatus: "Pending" | "Paid" | "Failed";
+    paymentMethod: "COD" | "Online";
     totalAmount: number;
     placedAt: Date;
     createdAt: Date;
@@ -64,6 +65,11 @@ const OrderSchema = new Schema<IOrder>(
             type: String,
             enum: ["Pending", "Paid", "Failed"],
             default: "Pending",
+        },
+        paymentMethod: {
+            type: String,
+            enum: ["COD", "Online"],
+            default: "COD",
         },
         totalAmount: { type: Number, required: true, min: 0 },
         placedAt: { type: Date, default: Date.now },

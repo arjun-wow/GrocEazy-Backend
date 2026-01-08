@@ -42,6 +42,9 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       sendEmail(req.user.email, email.subject, email.text).catch(console.error);
     }
 
+    console.log("User ID:", userId);
+       console.log(res)
+
     res.status(201).json(order);
   } catch (error: any) {
     res.status(500).json({
