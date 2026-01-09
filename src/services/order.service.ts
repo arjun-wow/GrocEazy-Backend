@@ -226,7 +226,13 @@ export const cancelOrder = async (userId: string, orderId: string) => {
 
 /* ================= GET ALL ORDERS ================= */
 
-export const getAllOrders = async (page = 1, limit = 20, status?: string) => {
+export const getAllOrders = async (
+  page = 1,
+  limit = 20,
+  status?: string,
+  dateFrom?: string,
+  sortOrder: "newest" | "oldest" = "newest"
+) => {
   const skip = (page - 1) * limit;
 
   const match: any = {};
@@ -234,7 +240,21 @@ export const getAllOrders = async (page = 1, limit = 20, status?: string) => {
     match.status = status;
   }
 
-  const [orders, total] = await Promise.all([
+  // Date filtering
+  if (dateFrom) {
+    match.createdAt = { $gte: new Date(dateFrom) };
+  }
+
+  // Determine sort direction
+  const sortDirection = sortOrder === "oldest" ? 1 : -1;
+
+  // Build base match for stats (without status filter to get all status counts)
+  const statsMatch: any = {};
+  if (dateFrom) {
+    statsMatch.createdAt = { $gte: new Date(dateFrom) };
+  }
+
+  const [orders, total, statusCounts] = await Promise.all([
     Order.find(match)
       .populate("userId", "name email")
       .populate({
@@ -242,14 +262,42 @@ export const getAllOrders = async (page = 1, limit = 20, status?: string) => {
         model: "Product",
         select: "name images price",
       })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: sortDirection })
       .skip(skip)
       .limit(limit),
-    Order.countDocuments(match)
+    Order.countDocuments(match),
+    // Aggregate status counts across all orders (respecting date filter only)
+    Order.aggregate([
+      { $match: statsMatch },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 }
+        }
+      }
+    ])
   ]);
+
+  // Convert status counts array to object
+  const stats = {
+    total: 0,
+    Pending: 0,
+    Processing: 0,
+    Shipped: 0,
+    Delivered: 0,
+    Cancelled: 0,
+  };
+
+  statusCounts.forEach((item: { _id: string; count: number }) => {
+    if (item._id in stats) {
+      (stats as any)[item._id] = item.count;
+    }
+    stats.total += item.count;
+  });
 
   return {
     orders,
+    stats,
     pagination: {
       total,
       page,
@@ -257,6 +305,7 @@ export const getAllOrders = async (page = 1, limit = 20, status?: string) => {
     },
   };
 };
+
 
 /* ================= UPDATE ORDER STATUS ================= */
 
