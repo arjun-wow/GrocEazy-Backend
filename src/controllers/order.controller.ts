@@ -171,10 +171,13 @@ export const getAllOrders = async (req: Request, res: Response) => {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
     const status = req.query.status as string;
+    const dateFrom = req.query.dateFrom as string;
+    const sortOrder = (req.query.sortOrder as "newest" | "oldest") || "newest";
 
-    const result = await orderService.getAllOrders(page, limit, status);
+    const result = await orderService.getAllOrders(page, limit, status, dateFrom, sortOrder);
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
+

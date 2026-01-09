@@ -112,7 +112,9 @@ class SupportService {
     page = 1,
     limit = 10,
     status?: string,
-    managerId?: string
+    managerId?: string,
+    dateFrom?: string,
+    sortOrder: "newest" | "oldest" = "newest"
   ) {
     const skip = (page - 1) * limit;
 
@@ -135,8 +137,31 @@ class SupportService {
       match.status = status;
     }
 
+    // Date filtering
+    if (dateFrom) {
+      match.createdAt = { $gte: new Date(dateFrom) };
+    }
+
+    // Determine sort direction
+    const sortDirection = sortOrder === "oldest" ? 1 : -1;
+
+    // Build stats match (without status filter to get all status counts)
+    const statsMatch: any = { isDeleted: false };
+    if (role === "customer") {
+      statsMatch.userId = userId;
+    }
+    if (role === "manager") {
+      statsMatch.assignedManagerId = userId;
+    }
+    if (role === "admin" && managerId && managerId !== "all") {
+      statsMatch.assignedManagerId = managerId;
+    }
+    if (dateFrom) {
+      statsMatch.createdAt = { $gte: new Date(dateFrom) };
+    }
+
     let query = SupportTicket.find(match)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: sortDirection })
       .skip(skip)
       .limit(limit)
       .lean();
@@ -153,7 +178,7 @@ class SupportService {
         });
     }
 
-    const [tickets, total, managers] = await Promise.all([
+    const [tickets, total, managers, statusCounts] = await Promise.all([
       query,
       SupportTicket.countDocuments(match),
       role === "admin"
@@ -161,13 +186,40 @@ class SupportService {
           .select("_id name email assignedTicketsCount")
           .lean()
         : Promise.resolve(undefined),
+      // Aggregate status counts (respecting role and date filter, but not status filter)
+      SupportTicket.aggregate([
+        { $match: statsMatch },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 }
+          }
+        }
+      ])
     ]);
+
+    // Convert status counts array to object
+    const stats = {
+      total: 0,
+      open: 0,
+      in_progress: 0,
+      resolved: 0,
+      closed: 0,
+    };
+
+    statusCounts.forEach((item: { _id: string; count: number }) => {
+      if (item._id in stats) {
+        (stats as any)[item._id] = item.count;
+      }
+      stats.total += item.count;
+    });
 
     return {
       tickets: tickets.map((ticket: any) =>
         this.formatTicket(ticket, role)
       ),
       managers: managers,
+      stats,
       pagination: {
         page,
         limit,
