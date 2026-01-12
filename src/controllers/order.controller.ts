@@ -163,6 +163,19 @@ export const cancelOrder = async (req: AuthRequest, res: Response) => {
   }
 };
 
+
+/**
+ * GET ORDER STATS (Manager)
+ */
+export const getOrderStats = async (_req: Request, res: Response) => {
+  try {
+    const stats = await orderService.getOrderStats();
+    res.json(stats);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 /**
  * GET ALL ORDERS (Manager)
  */
@@ -173,11 +186,18 @@ export const getAllOrders = async (req: Request, res: Response) => {
     const status = req.query.status as string;
     const dateFrom = req.query.dateFrom as string;
     const sortOrder = (req.query.sortOrder as "newest" | "oldest") || "newest";
+    const search = req.query.search as string;
 
-    const result = await orderService.getAllOrders(page, limit, status, dateFrom, sortOrder);
+    const result = await orderService.getAllOrders(
+      page,
+      limit,
+      status,
+      dateFrom,
+      sortOrder,
+      search
+    );
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ message: error.message });
   }
 };
-

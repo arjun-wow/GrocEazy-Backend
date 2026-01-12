@@ -36,16 +36,18 @@ export const getAllTickets = async (req: AuthRequest, res: Response) => {
     const assignedManager = req.query.assignedManager as string;
     const dateFrom = req.query.dateFrom as string;
     const sortOrder = (req.query.sortOrder as "newest" | "oldest") || "newest";
+    const search = req.query.search as string;
 
     const result = await SupportService.getAllTickets(
-      userId,
-      role,
       page,
       limit,
+      role,
+      userId,
       status,
-      assignedManager,
       dateFrom,
-      sortOrder
+      sortOrder,
+      assignedManager,
+      search
     );
 
     return res.json({

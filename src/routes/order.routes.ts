@@ -13,6 +13,12 @@ router.get(
   orderController.getAllOrders
 );
 
+router.get(
+  "/stats",
+  authorize(["manager"]),
+  orderController.getOrderStats
+);
+
 router.patch(
   "/:id/status",
   authorize(["manager"]),
