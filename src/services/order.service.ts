@@ -231,13 +231,26 @@ export const getAllOrders = async (
   limit = 20,
   status?: string,
   dateFrom?: string,
-  sortOrder: "newest" | "oldest" = "newest"
+  sortOrder: "newest" | "oldest" = "newest",
+  search?: string
 ) => {
   const skip = (page - 1) * limit;
 
   const match: any = {};
   if (status && status !== "all") {
     match.status = status;
+  }
+
+  if (search) {
+    if (mongoose.Types.ObjectId.isValid(search)) {
+      match._id = new mongoose.Types.ObjectId(search);
+    } else {
+      match.$or = [
+        { "address.fullName": { $regex: search, $options: "i" } },
+        { "address.phone": { $regex: search, $options: "i" } },
+        { "address.city": { $regex: search, $options: "i" } },
+      ];
+    }
   }
 
   // Date filtering
@@ -307,7 +320,40 @@ export const getAllOrders = async (
 };
 
 
+
+/* ================= GET ORDER STATS ================= */
+
+export const getOrderStats = async () => {
+  const statusCounts = await Order.aggregate([
+    {
+      $group: {
+        _id: "$status",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const stats = {
+    total: 0,
+    Pending: 0,
+    Processing: 0,
+    Shipped: 0,
+    Delivered: 0,
+    Cancelled: 0,
+  };
+
+  statusCounts.forEach((item: { _id: string; count: number }) => {
+    if (item._id in stats) {
+      (stats as any)[item._id] = item.count;
+    }
+    stats.total += item.count;
+  });
+
+  return stats;
+};
+
 /* ================= UPDATE ORDER STATUS ================= */
+
 
 const ALLOWED_STATUSES = [
   "Pending",

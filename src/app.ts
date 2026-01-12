@@ -23,10 +23,10 @@ export function createApp() {
   app.get("/", (req, res) => res.send("GrocEazy Backend — API lives at /api"));
 
   // Health check (useful for uptime checks)
-  app.get("/api/health", (req, res) => res.json({ ok: true }));
+  app.get("/api/v1/health", (req, res) => res.json({ ok: true }));
 
   // Mount main API router
-  app.use("/api", routes);
+  app.use("/api/v1", routes);
 
   app.use(errorHandler);
   return app;

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import SupportTicket from "../models/SupportTicket.js";
 import { User } from "../models/User.js";
 import {
@@ -107,25 +108,39 @@ class SupportService {
   }
 
   static async getAllTickets(
-    userId: string,
-    role: string,
     page = 1,
     limit = 10,
+    role: "customer" | "manager" | "admin",
+    userId: string,
     status?: string,
-    managerId?: string,
     dateFrom?: string,
-    sortOrder: "newest" | "oldest" = "newest"
+    sortOrder: "newest" | "oldest" = "newest",
+    managerId?: string,
+    search?: string
   ) {
     const skip = (page - 1) * limit;
 
-    const match: any = { isDeleted: false };
+    const match: any = { isDeleted: false }; // Base match
 
     if (role === "customer") {
-      match.userId = userId;
+      match.userId = new mongoose.Types.ObjectId(userId);
     }
 
     if (role === "manager") {
-      match.assignedManagerId = userId;
+      // Managers see tickets assigned to them
+      match.assignedManagerId = new mongoose.Types.ObjectId(userId);
+    }
+
+    // Search logic
+    if (search) {
+      if (mongoose.Types.ObjectId.isValid(search)) {
+        match._id = new mongoose.Types.ObjectId(search);
+      } else {
+        match.$or = [
+          { subject: { $regex: search, $options: "i" } },
+          { description: { $regex: search, $options: "i" } },
+        ];
+      }
     }
 
     // Admin can filter by manager
@@ -148,13 +163,14 @@ class SupportService {
     // Build stats match (without status filter to get all status counts)
     const statsMatch: any = { isDeleted: false };
     if (role === "customer") {
-      statsMatch.userId = userId;
+      statsMatch.userId = new mongoose.Types.ObjectId(userId);
     }
     if (role === "manager") {
-      statsMatch.assignedManagerId = userId;
+      statsMatch.assignedManagerId = new mongoose.Types.ObjectId(userId);
     }
-    if (role === "admin" && managerId && managerId !== "all") {
-      statsMatch.assignedManagerId = managerId;
+
+    if (managerId && managerId !== "all") {
+      statsMatch.assignedManagerId = new mongoose.Types.ObjectId(managerId);
     }
     if (dateFrom) {
       statsMatch.createdAt = { $gte: new Date(dateFrom) };
