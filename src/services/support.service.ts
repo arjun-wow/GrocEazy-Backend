@@ -145,7 +145,13 @@ class SupportService {
 
     // Admin can filter by manager
     if (role === "admin" && managerId && managerId !== "all") {
-      match.assignedManagerId = managerId;
+      if (managerId === "unassigned") {
+        match.assignedManagerId = null;
+      } else if (managerId === "assigned") {
+        match.assignedManagerId = { $ne: null };
+      } else {
+        match.assignedManagerId = new mongoose.Types.ObjectId(managerId);
+      }
     }
 
     if (status && status !== "all") {
@@ -170,7 +176,13 @@ class SupportService {
     }
 
     if (managerId && managerId !== "all") {
-      statsMatch.assignedManagerId = new mongoose.Types.ObjectId(managerId);
+      if (managerId === "unassigned") {
+        statsMatch.assignedManagerId = null;
+      } else if (managerId === "assigned") {
+        statsMatch.assignedManagerId = { $ne: null };
+      } else {
+        statsMatch.assignedManagerId = new mongoose.Types.ObjectId(managerId);
+      }
     }
     if (dateFrom) {
       statsMatch.createdAt = { $gte: new Date(dateFrom) };
