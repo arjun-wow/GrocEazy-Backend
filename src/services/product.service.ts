@@ -45,7 +45,21 @@ class ProductService {
         }
 
         if (filter.search) {
-            query.name = { $regex: filter.search, $options: 'i' };
+            const searchWords = filter.search.trim().split(/\s+/).filter(Boolean);
+            if (searchWords.length > 0) {
+                // For each word, create a regex that matches it case-insensitively in the name field
+                const nameConditions = searchWords.map(word => {
+                    const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    return { name: { $regex: escapedWord, $options: 'i' } };
+                });
+
+                // Combine conditions using $and (all words must be present in the name)
+                if (query.$and) {
+                    query.$and.push(...nameConditions);
+                } else {
+                    query.$and = nameConditions;
+                }
+            }
         }
 
         if (filter.isActive !== undefined) {
