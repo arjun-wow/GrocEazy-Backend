@@ -56,7 +56,7 @@ export const removeWishlistItem = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { wishlistId } = req.params;
+    const wishlistId = req.params.wishlistId as string;
 
     if (!wishlistId) {
       return res.status(400).json({
@@ -82,7 +82,7 @@ export const moveToCart = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { wishlistId } = req.params;
+    const wishlistId = req.params.wishlistId as string;
 
     if (!wishlistId) {
       return res.status(400).json({

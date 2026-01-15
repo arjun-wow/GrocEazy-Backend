@@ -67,7 +67,7 @@ export const updateTicketStatus = async (
   res: Response
 ) => {
   try {
-    const { ticketId } = req.params;
+    const ticketId = req.params.ticketId as string;
     const { status } = req.body;
 
     await SupportService.updateStatus(ticketId as string, status);
@@ -104,7 +104,7 @@ export const deleteTicket = async (req: AuthRequest, res: Response) => {
 
 export const assignManager = async (req: AuthRequest, res: Response) => {
   try {
-    const { ticketId } = req.params;
+    const ticketId = req.params.ticketId as string;
     const { managerId } = req.body;
 
     const ticket = await SupportService.assignToManager(
