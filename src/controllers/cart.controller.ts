@@ -58,7 +58,7 @@ export const updateCartItem = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { cartId } = req.params;
+    const cartId = req.params.cartId as string;
     const { quantity } = req.body;
 
     if (!cartId) {
@@ -86,7 +86,7 @@ export const removeCartItem = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const { cartId } = req.params;
+    const cartId = req.params.cartId as string;
 
     if (!cartId) {
       return res.status(400).json({

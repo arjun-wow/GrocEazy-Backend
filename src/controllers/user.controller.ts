@@ -54,7 +54,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
 
 export const getUserById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const user = await User.findById(id).select(
       "-password -emailVerificationTokenHash -emailVerificationExpires"
     );
@@ -73,7 +73,7 @@ export const getUserById = async (req: Request, res: Response) => {
 
 export const updateUserStatus = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { isActive, isDeleted } = req.body;
 
     const user = await User.findById(id);
@@ -150,7 +150,7 @@ export const addUserAddress = async (req: Request, res: Response) => {
 export const updateUserAddress = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user._id;
-    const { addressId } = req.params;
+    const addressId = req.params.addressId as string;
     const addressData = req.body;
 
     if (!addressId) {
@@ -171,7 +171,7 @@ export const updateUserAddress = async (req: Request, res: Response) => {
 export const deleteUserAddress = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user._id;
-    const { addressId } = req.params;
+    const addressId = req.params.addressId as string;
 
     if (!addressId) {
       return res.status(400).json({ message: "Address ID is required" });

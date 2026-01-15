@@ -55,7 +55,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
  */
 export const changeOrderStatus = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status } = req.body;
 
     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
@@ -116,7 +116,7 @@ export const getMyOrders = async (req: AuthRequest, res: Response) => {
 export const getOrderById = async (req: AuthRequest, res: Response) => {
   try {
     const userId = getUserId(req);
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       return res.status(400).json({ message: "Order ID is required" });
@@ -140,7 +140,7 @@ export const getOrderById = async (req: AuthRequest, res: Response) => {
 export const cancelOrder = async (req: AuthRequest, res: Response) => {
   try {
     const userId = getUserId(req);
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     if (!id) {
       return res.status(400).json({ message: "Order ID is required" });
