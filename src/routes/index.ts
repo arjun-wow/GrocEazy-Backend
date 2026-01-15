@@ -13,6 +13,7 @@ import userRoutes from "./user.routes.js";
 import wishListRoutes from "./wishlist.routes.js";
 import analyticsRoutes from "./analytics.routes.js";
 import inventoryRoutes from "./inventory.routes.js";
+import chatRoutes from "./chat.routes.js";
 const router = Router();
 
 // Auth Routes (cleanly separated)
@@ -30,4 +31,5 @@ router.use("/wishlist", wishListRoutes);
 router.use("/orders", orderRoutes);
 router.use("/support", supportRoutes);
 router.use("/analytics", analyticsRoutes);
+router.use("/chat", chatRoutes);
 export default router;

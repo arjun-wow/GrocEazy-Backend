@@ -232,13 +232,18 @@ export const getAllOrders = async (
   status?: string,
   dateFrom?: string,
   sortOrder: "newest" | "oldest" = "newest",
-  search?: string
+  search?: string,
+  userId?: string
 ) => {
   const skip = (page - 1) * limit;
 
   const match: any = {};
   if (status && status !== "all") {
     match.status = status;
+  }
+
+  if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+    match.userId = new mongoose.Types.ObjectId(userId);
   }
 
   if (search) {
