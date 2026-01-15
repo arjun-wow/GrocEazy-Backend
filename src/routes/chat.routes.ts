@@ -34,7 +34,7 @@ router.get('/rooms', authenticate, async (req: any, res) => {
           lastTimestamp: { $first: '$createdAt' },
           unreadCount: { 
             $sum: { 
-              $cond: [{ $and: [{ $eq: ['$isAdmin', false] }] }, 1, 0] 
+              $cond: [{ $and: [{ $eq: ['$isAdmin', false] }, { $eq: ['$isRead', false] }] }, 1, 0] 
             } 
           }
         }
@@ -74,6 +74,38 @@ router.get('/rooms', authenticate, async (req: any, res) => {
     res.json(rooms);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching chat rooms' });
+  }
+});
+
+// Get global unread count for manager
+router.get('/unread-count', authenticate, async (req: any, res) => {
+  try {
+    if (req.user?.role === 'customer') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const count = await ChatMessage.countDocuments({
+      isAdmin: false,
+      isRead: false
+    });
+
+    res.json({ count });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching unread count' });
+  }
+});
+
+// Mark messages in a room as read
+router.post('/mark-read/:room', authenticate, async (req: any, res) => {
+  try {
+    const room = req.params.room;
+    await ChatMessage.updateMany(
+      { room, isAdmin: false, isRead: false },
+      { $set: { isRead: true } }
+    );
+    res.json({ message: 'Messages marked as read' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error marking messages as read' });
   }
 });
 

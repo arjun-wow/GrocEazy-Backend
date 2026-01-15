@@ -6,6 +6,7 @@ export interface IChatMessage extends Document {
   message: string;
   room: string; // Typically the customer's ID
   isAdmin: boolean;
+  isRead: boolean;
   createdAt: Date;
 }
 
@@ -30,6 +31,10 @@ const ChatMessageSchema: Schema = new Schema(
       index: true,
     },
     isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    isRead: {
       type: Boolean,
       default: false,
     },

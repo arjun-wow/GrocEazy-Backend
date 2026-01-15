@@ -187,6 +187,7 @@ export const getAllOrders = async (req: Request, res: Response) => {
     const dateFrom = req.query.dateFrom as string;
     const sortOrder = (req.query.sortOrder as "newest" | "oldest") || "newest";
     const search = req.query.search as string;
+    const userId = req.query.userId as string;
 
     const result = await orderService.getAllOrders(
       page,
@@ -194,7 +195,8 @@ export const getAllOrders = async (req: Request, res: Response) => {
       status,
       dateFrom,
       sortOrder,
-      search
+      search,
+      userId
     );
     res.json(result);
   } catch (error: any) {
