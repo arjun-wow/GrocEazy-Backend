@@ -8,6 +8,8 @@ export interface IProduct extends Document {
     stock: number;
     lowStockThreshold: number;
     price: number;
+    discountPrice?: number;
+    onSale: boolean;
     images: string[];
     isActive: boolean;
     categoryId: mongoose.Types.ObjectId;
@@ -26,6 +28,8 @@ const ProductSchema: Schema = new Schema(
         stock: { type: Number, required: true, default: 0 },
         lowStockThreshold: { type: Number, default: 5 },
         price: { type: Number, required: true },
+        discountPrice: { type: Number },
+        onSale: { type: Boolean, default: false },
         images: [{ type: String }],
         isActive: { type: Boolean, default: true },
         categoryId: {

@@ -3,6 +3,9 @@ import CartItem from '../models/Cart.js';
 import Product from '../models/Product.js';
 
 
+import OfferService from "./offer.service.js";
+import { decorateProductWithOffer } from "../utils/promoUtils.js";
+
 class CartService {
   /* ================= GET CART ================= */
 
@@ -43,6 +46,7 @@ class CartService {
             price: 1,
             stock: 1,
             isActive: 1,
+            categoryId: 1,
           },
         },
       },
@@ -58,8 +62,32 @@ class CartService {
     const items = result[0]?.items ?? [];
     const total = result[0]?.totalCount[0]?.count ?? 0;
 
+    // Decorate items with offers and recalculate totals
+    const activeOffers = await OfferService.getActiveOffers();
+    const decoratedItems = items.map((item: any) => {
+      const productWithOffer = decorateProductWithOffer(item.product, activeOffers);
+      let lineTotal = item.quantity * productWithOffer.price;
+      let finalPrice = productWithOffer.price;
+
+      // Calculate Percentage/Fixed discount on line total
+      if (productWithOffer.onSale && productWithOffer.discountPrice) {
+        finalPrice = productWithOffer.discountPrice;
+        lineTotal = item.quantity * finalPrice;
+      }
+
+      return {
+        ...item,
+        product: productWithOffer,
+        lineTotal: lineTotal
+      };
+    });
+
+    // Recalculate cart total based on discounted line totals
+    const cartTotal = decoratedItems.reduce((sum: number, item: any) => sum + item.lineTotal, 0);
+
     return {
-      items,
+      items: decoratedItems,
+      cartTotal, // Return explicit total
       pagination: {
         total,
         page,
@@ -72,6 +100,7 @@ class CartService {
   /* ================= ADD TO CART ================= */
 
   async addToCart(userId: string, productId: string, quantity: number) {
+    let quantityToAdd = quantity;
     const product = await Product.findOne({
       _id: productId,
       isDeleted: false,
@@ -84,7 +113,7 @@ class CartService {
 
     const cartItem = await CartItem.findOneAndUpdate(
       { userId, productId },
-      { $inc: { quantity } },
+      { $inc: { quantity: quantityToAdd } },
       { new: true, upsert: true }
     );
 

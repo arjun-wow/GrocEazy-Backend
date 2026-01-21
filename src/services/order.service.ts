@@ -5,19 +5,21 @@ import CartItem from "../models/Cart.js";
 import { User } from "../models/User.js";
 import { sendEmail, getLowStockEmail } from "../utils/email.util.js";
 import { logger } from "../utils/logger.js";
+import CouponService from "./coupon.service.js";
 
 /* ================= TYPES ================= */
 
 interface CreateOrderData {
   userId: string;
   address: any;
-  items: { productId: string; quantity: number }[];
+  items?: { productId: string; quantity: number }[];
+  couponCode?: string;
 }
 
 /* ================= CREATE ORDER ================= */
 
 export const createOrder = async (data: CreateOrderData) => {
-  const { userId, address } = data;
+  const { userId, address, couponCode } = data;
 
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -57,15 +59,17 @@ export const createOrder = async (data: CreateOrderData) => {
         );
       }
 
-      const unitPrice = product.price;
+      const unitPrice = product.onSale && product.discountPrice ? product.discountPrice : product.price;
       const lineTotal = unitPrice * item.quantity;
 
       totalAmount += lineTotal;
 
       orderItems.push({
         productId: product._id,
+        categoryId: product.categoryId,
         quantity: item.quantity,
         unitPrice,
+        price: unitPrice, // For coupon validation
         lineTotal,
       });
 
@@ -102,11 +106,34 @@ export const createOrder = async (data: CreateOrderData) => {
       }
     }
 
+    // 2.5️⃣ Apply Coupon
+    let discountAmount = 0;
+    const subtotal = totalAmount;
+    if (couponCode) {
+      const validation = await CouponService.validateCoupon({
+        code: couponCode,
+        cartTotal: subtotal,
+        userId,
+        items: orderItems,
+      });
+      if (!validation.valid) {
+        throw new Error(validation.message || "Invalid coupon code");
+      }
+      discountAmount = validation.discountAmount;
+      totalAmount = subtotal - discountAmount;
+
+      // Increment used count
+      await CouponService.incrementUsedCount(couponCode, userId);
+    }
+
     // 3️⃣ Create order
     const newOrder = new Order({
       userId,
       address,
       items: orderItems,
+      subtotal,
+      discountAmount,
+      couponCode,
       totalAmount,
       status: "Pending",
       paymentStatus: "Pending",
@@ -118,6 +145,7 @@ export const createOrder = async (data: CreateOrderData) => {
     await CartItem.deleteMany({ userId }, { session });
 
     await session.commitTransaction();
+
     return savedOrder;
   } catch (error) {
     await session.abortTransaction();
@@ -205,7 +233,7 @@ export const cancelOrder = async (userId: string, orderId: string) => {
         { $inc: { stock: item.quantity } },
         { session, new: true }
       );
-      
+
       if (!product) {
         throw new Error(`Product ${item.productId} not found during stock restoration`);
       }
