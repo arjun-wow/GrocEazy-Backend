@@ -38,11 +38,11 @@ export const getActiveOffers: RequestHandler = async (_req, res) => {
 export const updateOffer: RequestHandler = async (req, res) => {
     try {
         const { id } = req.params;
-        if (!id) {
+        if (!id || typeof id !== 'string') {
             res.status(400).json({ message: "Offer ID is required" });
             return;
         }
-        const offer = await OfferService.updateOffer(id, req.body);
+        const offer = await OfferService.updateOffer(id as string, req.body);
         if (!offer) {
             res.status(404).json({ message: "Offer not found" });
             return;
@@ -57,11 +57,11 @@ export const updateOffer: RequestHandler = async (req, res) => {
 export const deleteOffer: RequestHandler = async (req, res) => {
     try {
         const { id } = req.params;
-        if (!id) {
+        if (!id || typeof id !== 'string') {
             res.status(400).json({ message: "Offer ID is required" });
             return;
         }
-        const offer = await OfferService.deleteOffer(id);
+        const offer = await OfferService.deleteOffer(id as string);
         if (!offer) {
             res.status(404).json({ message: "Offer not found" });
             return;
