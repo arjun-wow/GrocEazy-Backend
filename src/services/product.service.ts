@@ -3,6 +3,8 @@ import { uploadToCloudinary } from "../utils/cloudinary.js";
 import CartItem from "../models/Cart.js";
 import WishlistItem from "../models/Wishlist.js";
 import type { CreateProductInput, UpdateProductInput, GetProductsQuery } from "../validators/product.validators.js";
+import OfferService from "./offer.service.js";
+import { decorateProductWithOffer } from "../utils/promoUtils.js";
 
 class ProductService {
     async createProduct(data: CreateProductInput, files?: Express.Multer.File[]): Promise<IProduct> {
@@ -103,8 +105,14 @@ class ProductService {
             Product.countDocuments(query)
         ]);
 
+        // Apply active offers
+        const activeOffers = await OfferService.getActiveOffers();
+        const productsWithOffers = products.map(product => {
+            return decorateProductWithOffer(product, activeOffers);
+        });
+
         return {
-            products,
+            products: productsWithOffers,
             total,
             page: page || 1,
             limit: limit || total,
@@ -112,12 +120,16 @@ class ProductService {
         };
     }
 
-    async getProductById(id: string, includeInactive: boolean = false): Promise<IProduct | null> {
+    async getProductById(id: string, includeInactive: boolean = false): Promise<any | null> {
         const query: any = { _id: id, isDeleted: false };
         if (!includeInactive) {
             query.isActive = true;
         }
-        return await Product.findOne(query).populate("categoryId", "name");
+        const product = await Product.findOne(query).populate("categoryId", "name").lean();
+        if (!product) return null;
+
+        const activeOffers = await OfferService.getActiveOffers();
+        return decorateProductWithOffer(product, activeOffers);
     }
 
     async updateProduct(id: string, data: UpdateProductInput, files?: Express.Multer.File[]): Promise<IProduct | null> {

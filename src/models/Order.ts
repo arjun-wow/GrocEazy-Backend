@@ -23,6 +23,9 @@ export interface IOrder extends Document {
     status: "Pending" | "Processing" | "Shipped" | "Delivered" | "Cancelled";
     paymentStatus: "Pending" | "Paid" | "Failed";
     totalAmount: number;
+    discountAmount: number;
+    couponCode?: string;
+    subtotal: number;
     placedAt: Date;
     createdAt: Date;
     updatedAt: Date;
@@ -66,6 +69,9 @@ const OrderSchema = new Schema<IOrder>(
             default: "Pending",
         },
         totalAmount: { type: Number, required: true, min: 0 },
+        discountAmount: { type: Number, default: 0, min: 0 },
+        couponCode: { type: String },
+        subtotal: { type: Number, required: true, min: 0 },
         placedAt: { type: Date, default: Date.now },
     },
     { timestamps: true }

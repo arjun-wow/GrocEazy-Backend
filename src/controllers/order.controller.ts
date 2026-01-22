@@ -27,9 +27,9 @@ const getUserId = (req: AuthRequest): string => {
 export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
     const userId = getUserId(req);
-    const { address, items } = req.body;
+    const { address, items, couponCode } = req.body;
 
-    const order = await orderService.createOrder({ userId, address, items });
+    const order = await orderService.createOrder({ userId, address, items, couponCode });
 
     if (req.user?.email) {
       const userName = req.user.name ?? "Customer";
