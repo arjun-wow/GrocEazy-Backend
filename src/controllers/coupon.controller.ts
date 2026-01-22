@@ -46,11 +46,11 @@ export const validateCoupon: RequestHandler = async (req, res) => {
 export const updateCoupon: RequestHandler = async (req, res) => {
     try {
         const { id } = req.params;
-        if (!id) {
+        if (!id || typeof id !== 'string') {
             res.status(400).json({ message: "Coupon ID is required" });
             return;
         }
-        const coupon = await CouponService.updateCoupon(id, req.body);
+        const coupon = await CouponService.updateCoupon(id as string, req.body);
         if (!coupon) {
             res.status(404).json({ message: "Coupon not found" });
             return;
@@ -65,11 +65,11 @@ export const updateCoupon: RequestHandler = async (req, res) => {
 export const deleteCoupon: RequestHandler = async (req, res) => {
     try {
         const { id } = req.params;
-        if (!id) {
+        if (!id || typeof id !== 'string') {
             res.status(400).json({ message: "Coupon ID is required" });
             return;
         }
-        const coupon = await CouponService.deleteCoupon(id);
+        const coupon = await CouponService.deleteCoupon(id as string);
         if (!coupon) {
             res.status(404).json({ message: "Coupon not found" });
             return;
